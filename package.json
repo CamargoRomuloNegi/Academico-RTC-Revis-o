@@ -1,0 +1,49 @@
+{
+  "name": "extrator-xml-rtc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Extrator de dados brutos de XMLs fiscais (NF-e 55, NFC-e 65, CT-e 57, NFS-e Nacional) com revisão de CST/cClassTrib por IA à luz da Reforma Tributária do Consumo.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verificar": "npm run typecheck && npm run lint && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/outfit": "^5.2.8",
+    "clsx": "^2.1.1",
+    "fast-xml-parser": "^5.2.5",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.513.0",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.3.0",
+    "@e965/xlsx": "0.20.3",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.5.0",
+    "eslint-config-prettier": "^10.1.5",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^4.1.8",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

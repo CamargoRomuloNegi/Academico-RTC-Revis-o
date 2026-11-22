@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="http://www.portalfiscal.inf.br/nfe" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.portalfiscal.inf.br/nfe" elementFormDefault="qualified">
+  <xs:simpleType name="TCst">
+    <xs:annotation><xs:documentation>Código de Situação Tributária do IBS e da CBS</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:string"><xs:pattern value="[0-9]{3}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TTpNF">
+    <xs:restriction base="xs:string"><xs:enumeration value="0"/><xs:enumeration value="1"/></xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="TTribIBSCBS">
+    <xs:sequence>
+      <xs:element name="CST" type="TCst"/>
+      <xs:element name="cClassTrib" type="xs:string">
+        <xs:annotation><xs:documentation>Código de Classificação Tributária</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="gIBSCBS" minOccurs="0">
+        <xs:complexType><xs:sequence><xs:element name="vBC" type="xs:string"/></xs:sequence></xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

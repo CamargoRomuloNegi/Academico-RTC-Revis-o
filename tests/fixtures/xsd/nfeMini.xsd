@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="http://www.portalfiscal.inf.br/nfe" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" targetNamespace="http://www.portalfiscal.inf.br/nfe" elementFormDefault="qualified" version="4.00">
+  <xs:include schemaLocation="tiposMini.xsd"/>
+  <xs:element name="NFe" type="TNFe"><xs:annotation><xs:documentation>Nota Fiscal Eletrônica</xs:documentation></xs:annotation></xs:element>
+  <xs:complexType name="TNFe">
+    <xs:sequence>
+      <xs:element name="infNFe">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="ide">
+              <xs:complexType><xs:sequence>
+                <xs:element name="natOp" type="xs:string"><xs:annotation><xs:documentation>Descrição da Natureza da Operação</xs:documentation></xs:annotation></xs:element>
+                <xs:element name="tpNF" type="TTpNF"/>
+              </xs:sequence></xs:complexType>
+            </xs:element>
+            <xs:element name="det" maxOccurs="990">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="prod"><xs:complexType><xs:sequence><xs:element name="xProd" type="xs:string"/></xs:sequence></xs:complexType></xs:element>
+                  <xs:element name="imposto"><xs:complexType><xs:sequence>
+                    <xs:choice><xs:element name="ICMS" type="xs:string"/><xs:element name="ISSQN" type="xs:string"/></xs:choice>
+                    <xs:element name="IBSCBS" type="TTribIBSCBS" minOccurs="0"/>
+                  </xs:sequence></xs:complexType></xs:element>
+                </xs:sequence>
+                <xs:attribute name="nItem" type="xs:string" use="required"/>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+          <xs:attribute name="Id" type="xs:ID" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element ref="ds:Signature"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
