@@ -14,7 +14,8 @@ Ferramenta acadêmica para **extrair dados brutos de XMLs fiscais** (NF-e 55, NF
 | 2 | Campos | Define quais campos extras saem na planilha, além do padrão. Perfis podem ser exportados e importados em JSON. |
 | 3 e 4 | Leitura e processamento | Lê XMLs soltos ou .zip (inclusive .zip dentro de .zip), detecta o tipo, interpreta, remove duplicatas pela chave de acesso e identifica a direção (entrada/saída) pela empresa analisada. |
 | 5 | Exportação | Gera o arquivo nas abas **Documentos** e **Itens Analítico**, em xlsx, xls, csv ou txt. |
-| 6 | Configurar IA / Revisão por IA | Aglutina os itens em pares únicos **CFOP + NCM + CST + cClassTrib**, distribui os pares entre 5 modelos gratuitos do OpenRouter em rodízio, com o Gemini como fallback, valida as respostas e exporta o trabalho de revisão linha a linha. |
+| 6 | Configurar IA / Revisão por IA | Filtra o escopo pelo regime do emitente (Regime Normal e Simples com excesso de sublimite), aglutina os itens em pares únicos **CFOP + CST + cClassTrib**, distribui os pares entre 5 modelos gratuitos do OpenRouter **em paralelo**, com o Gemini como fallback, valida as respostas e exporta o trabalho de revisão linha a linha. |
+| 7 | Resumo executivo | Painel com a amostra, a empresa, as principais operações e o **nível de conformidade por valor**, pontos de atenção e relatório executivo redigido pelo Gemini. Imprime em PDF e exporta para o Excel. |
 
 O guia de uso completo está em [`docs/PASSO_A_PASSO.md`](docs/PASSO_A_PASSO.md), que também aparece dentro da aplicação na tela **Passo a passo**.
 
@@ -24,6 +25,7 @@ O guia de uso completo está em [`docs/PASSO_A_PASSO.md`](docs/PASSO_A_PASSO.md)
 - **Processamento no navegador.** Os XMLs nunca são enviados ao servidor (ADR-0001).
 - **Segredos só em memória.** As chaves de API vêm de um arquivo carregado pelo usuário e não são gravadas em lugar nenhum (ADR-0006 e [`docs/SEGURANCA.md`](docs/SEGURANCA.md)).
 - **A IA não decide.** Ela sugere. Cada linha mostra o julgamento humano (matriz), a classificação existente no XML, a proposta da IA e o modelo que julgou. A revisão humana continua obrigatória.
+- **Literalidade nas reduções.** O NCM não vai para a IA, e a ferramenta não confirma nem nega redução de alíquota pelo produto: ela sinaliza, e o profissional confere a correspondência literal (D22).
 
 ## Tecnologia
 
@@ -69,6 +71,7 @@ src/
     matriz/                leitura da matriz humana, da tabela de cClassTrib e do prompt
     services/              processamento, enriquecimento, aglutinação e exportação
     ia/                    prompt, validação, controle de cota, orquestrador, planilha de revisão
+    resumo/                indicadores do resumo executivo, abas e mensagens do relatório
     store/                 estado da sessão (Zustand, só em memória)
   infrastructure/
     parsers/               parsers de NF-e, NFC-e, CT-e e NFS-e
@@ -77,9 +80,9 @@ src/
     arquivos/              leitura de .xml e .zip
     ia/                    cliente HTTP dos provedores, cofre de segredos, redator de logs
 public/
-  conhecimento/            matriz de CFOP, prompt-mestre e tabela de cClassTrib (base da IA)
+  conhecimento/            matriz de CFOP, prompt-mestre, tabela de cClassTrib e tabela oficial de CFOP
   modelos/                 modelo do arquivo de segredos
-docs/                      passo a passo, manutenção, segurança, decisões e ADRs
+docs/                      passo a passo, manutenção, segurança, decisões, ADRs, SDD e seção para IA
 tests/                     testes automatizados e arquivos de exemplo
 ```
 
@@ -92,12 +95,15 @@ tests/                     testes automatizados e arquivos de exemplo
 | [`docs/SEGURANCA.md`](docs/SEGURANCA.md) | Todos | Como os dados e as chaves são tratados, e os riscos conhecidos. |
 | [`docs/REGISTRO_DE_DECISOES.md`](docs/REGISTRO_DE_DECISOES.md) | Todos | Decisões do professor (D01 a D20) e pendências. |
 | [`docs/adr/`](docs/adr/) | Quem mantém o código | Decisões de arquitetura, com contexto e consequências. |
+| [`docs/sdd/`](docs/sdd/00-INDICE.md) | Quem mantém ou reconstrói | Especificação completa (SDD): visão, requisitos, arquitetura, dados, fluxos, funções, regras, contrato com a IA e critérios de aceite. |
+| [`docs/ia/`](docs/ia/PROMPT_DE_REPRODUCAO.md) | Quem não assistiu à aula / outra IA | Seção para IA: um prompt que apresenta o projeto e orienta a sua reprodução a partir da SDD. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Todos | Histórico de versões. |
 
 ## Evoluções previstas
 
 - Autenticação com Clerk, para liberar com segurança as chaves das variáveis da Vercel (D16).
 - Processamento em Web Worker para volumes muito acima de 100 MB (ADR-0002).
+- Respostas mais curtas da IA quando ela concorda (análise completa só nas divergências), para reduzir tempo e tokens.
 - Leiaute ABRASF da NFS-e municipal (hoje fora do escopo, D04).
 
 ## Aviso

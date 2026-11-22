@@ -20,9 +20,13 @@ describe('MontadorPrompt', () => {
   })
 
   it('monta a mensagem do lote no formato da seção 8', () => {
-    const [sistema, usuario] = montarMensagens('S', [{ id: 'P1', cfop: '5101', ncm: '1', cstAtual: '000', cClassTribAtual: '000001', descricoesExemplo: ['a'], tiposDocumento: ['NFE'], direcoes: ['SAIDA'], qtdItens: 2, valorTotal: 3, enquadramentos: [], sinalizacoes: ['cfop_fora_matriz'] }])
+    const [sistema, usuario] = montarMensagens('S', [{ id: 'P1', cfop: '5101', descricaoCfop: 'Venda', cstAtual: '000', cClassTribAtual: '000001', descricoesExemplo: ['a'], tiposDocumento: ['NFE'], ncms: ['25291000'], qtdNcms: 1, qtdItens: 2, valorTotal: 3, enquadramentos: [], sinalizacoes: ['cfop_fora_matriz'] }])
     expect(sistema).toEqual({ role: 'system', content: 'S' })
     const json = JSON.parse(usuario!.content.slice(usuario!.content.indexOf('{')))
-    expect(json.pares[0]).toMatchObject({ id: 'P1', cst_atual: '000', cclasstrib_atual: '000001', sinalizacoes: ['cfop_fora_matriz'], grupos_matriz_humana: [] })
+    expect(json.pares[0]).toMatchObject({ id: 'P1', descricao_oficial_cfop: 'Venda', cst_atual: '000', cclasstrib_atual: '000001', sinalizacoes: ['cfop_fora_matriz'], grupos_matriz_humana: [] })
+    // NCM e direção não vão para a IA (D22, D24)
+    expect(usuario!.content).not.toContain('25291000')
+    expect(json.pares[0]).not.toHaveProperty('ncm')
+    expect(json.pares[0]).not.toHaveProperty('direcoes')
   })
 })

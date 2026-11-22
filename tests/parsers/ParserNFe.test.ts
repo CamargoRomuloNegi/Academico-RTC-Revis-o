@@ -144,3 +144,17 @@ describe('ParserNFe — XML inválido', () => {
     expect(result.success).toBe(false)
   })
 })
+
+describe('ParserNFe — regime do emitente pelo CRT (decisão D23)', () => {
+  const base = read('nfe_rpa_com_ibs.xml')
+  it.each([
+    ['1', 'SIMPLES_NACIONAL'],
+    ['2', 'SIMPLES_EXCESSO'],
+    ['3', 'RPA'],
+    ['4', 'MEI'],
+  ])('CRT %s → %s', (crt, esperado) => {
+    const xml = base.replace(/<CRT>\d<\/CRT>/, `<CRT>${crt}</CRT>`)
+    expect(xml).toContain(`<CRT>${crt}</CRT>`)
+    expect(parser.parse(xml, 'x.xml').document?.tax_regime).toBe(esperado)
+  })
+})

@@ -10,7 +10,7 @@ const tabela = lerTabelaClassificacao(lerConhecimento('classificacao_tributaria.
 const relogio = { agora: () => 0, dormir: async () => {} }
 
 function par(id: string, extra: Partial<ParUnico> = {}): ParUnico {
-  return { id, cfop: '5101', ncm: '25291000', cstAtual: '000', cClassTribAtual: '000001', descricoesExemplo: ['x'], tiposDocumento: ['NFE'], direcoes: ['SAIDA'], qtdItens: 1, valorTotal: 1, enquadramentos: [{ grupo: 'II', subgrupo: 'Venda de Produção', essencia: 'e' }], sinalizacoes: [], ...extra }
+  return { id, cfop: '5101', descricaoCfop: 'Venda de produção do estabelecimento', cstAtual: '000', cClassTribAtual: '000001', descricoesExemplo: ['x'], tiposDocumento: ['NFE'], ncms: ['25291000'], qtdNcms: 1, qtdItens: 1, valorTotal: 1, enquadramentos: [{ grupo: 'II', subgrupo: 'Venda de Produção', essencia: 'e' }], sinalizacoes: [], ...extra }
 }
 
 const vagas: VagaModelo[] = [
@@ -98,5 +98,46 @@ describe('OrquestradorRevisao', () => {
     const r = await executarRevisao({ pares: [par('P1')], vagas, parametros, promptSistema: 'S', tabela, signal: controlador.signal }, simulado())
     expect(r.interrompida).toBe(true)
     expect(r.linhas[0]!.erro).toMatch(/interrompida/)
+  })
+
+  it('em paralelo, cada vaga julga um lote ao mesmo tempo (D25); em série, um de cada vez', async () => {
+    async function rodar(emParalelo: boolean) {
+      let ativos = 0
+      let maximo = 0
+      const deps: DependenciasRevisao = {
+        relogio,
+        chamar: async (_vaga, mensagens: MensagemChat[]) => {
+          ativos++
+          maximo = Math.max(maximo, ativos)
+          await new Promise((r) => setTimeout(r, 15))
+          ativos--
+          const ids = (JSON.parse(mensagens[1]!.content.slice(mensagens[1]!.content.indexOf('{'))) as { pares: { id: string }[] }).pares.map((p) => p.id)
+          return { texto: JSON.stringify({ resultados: ids.map((id) => resultadoValido(id)) }) }
+        },
+      }
+      const pares = Array.from({ length: 10 }, (_, i) => par(`P${i + 1}`))
+      const r = await executarRevisao({ pares, vagas, parametros: { ...parametros, emParalelo }, promptSistema: 'S', tabela }, deps)
+      return { maximo, r }
+    }
+    const paralelo = await rodar(true)
+    expect(paralelo.maximo).toBe(5)
+    expect(new Set(paralelo.r.linhas.map((l) => l.modeloJulgador)).size).toBe(5)
+    expect(paralelo.r.linhas.every((l) => l.resultado)).toBe(true)
+    expect((await rodar(false)).maximo).toBe(1)
+  })
+
+  it('exige revisão humana quando a IA propõe um cClassTrib de redução (literalidade, D22)', async () => {
+    const deps: DependenciasRevisao = {
+      relogio,
+      chamar: async () => ({ texto: JSON.stringify({ resultados: [resultadoValido('P1', { parecer: 'DIVERGE', cst_proposto: '200', cclasstrib_proposto: '200032' })] }) }),
+    }
+    const r = await executarRevisao({ pares: [par('P1')], vagas, parametros, promptSistema: 'S', tabela }, deps)
+    expect(r.linhas[0]!.validacao?.ok).toBe(true)
+    expect(r.linhas[0]!.revisaoHumanaObrigatoria).toBe(true)
+  })
+
+  it('exige revisão humana para CFOP inexistente e redução já no XML', async () => {
+    const r = await executarRevisao({ pares: [par('P1', { sinalizacoes: ['cfop_inexistente'] }), par('P2', { sinalizacoes: ['reducao_literalidade'] })], vagas, parametros, promptSistema: 'S', tabela }, simulado())
+    expect(r.linhas.every((l) => l.revisaoHumanaObrigatoria)).toBe(true)
   })
 })

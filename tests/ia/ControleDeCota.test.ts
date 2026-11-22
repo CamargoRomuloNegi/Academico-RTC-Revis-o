@@ -27,4 +27,13 @@ describe('ControleDeCota', () => {
     expect(c.restanteHoje('gemini')).toBe(5)
     expect(c.usadasHoje('openrouter')).toBe(2)
   })
+
+  it('reservar() é atômico: tarefas em paralelo não passam do rpm nem da cota diária', async () => {
+    const relogio = relogioFalso()
+    const c = new ControleDeCota({ openrouter: 3, gemini: 5 }, relogio)
+    const r = await Promise.all(Array.from({ length: 5 }, () => c.reservar('v1', 2, 'openrouter')))
+    expect(r.filter(Boolean)).toHaveLength(3) // cota diária = 3
+    expect(c.usadasHoje('openrouter')).toBe(3)
+    expect(relogio.t).toBeGreaterThanOrEqual(60_000) // a 3ª esperou a janela (rpm = 2)
+  })
 })

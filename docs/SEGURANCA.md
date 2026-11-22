@@ -18,7 +18,10 @@ Não há banco de dados, `localStorage`, `sessionStorage`, cookies nem registros
 
 A leitura, o processamento e a exportação acontecem no próprio navegador ([ADR-0001](adr/0001-processamento-no-navegador.md)). Nenhum XML é enviado à Vercel.
 
-O que **sai** do navegador, e só se o usuário iniciar a revisão por IA, são os **pares únicos** enviados ao provedor de IA escolhido: CFOP, NCM, CST, cClassTrib, até três descrições de produto, tipo de documento, direção, quantidade de itens e valor total do par. CNPJ, nomes, endereços e chaves de acesso **não** são enviados.
+O que **sai** do navegador, e só por ação do usuário:
+
+- **Revisão por IA:** os **pares únicos** enviados ao provedor escolhido: CFOP e a sua descrição oficial, CST, cClassTrib, até três descrições de produto, tipo de documento, o enquadramento da matriz, as sinalizações, a quantidade de itens e o valor total do par. CNPJ, nomes, endereços, chaves de acesso, NCM e direção da operação **não** são enviados.
+- **Relatório executivo:** uma chamada ao Gemini com os **indicadores consolidados**: razão social e CNPJ raiz da empresa analisada, regime, período, totais, conformidade, principais CFOPs e os pontos de atenção (pares, valores e justificativas). Nenhum XML, item ou dado de terceiros vai junto.
 
 > **Atenção aos termos dos provedores gratuitos.** Modelos `:free` do OpenRouter podem ter os pedidos registrados e usados pelo provedor do modelo para treinamento. Consulte as políticas de privacidade em *openrouter.ai → Settings → Privacy* e, se necessário, restrinja os provedores que aceitam registrar dados. O mesmo vale para o nível gratuito da API do Gemini.
 

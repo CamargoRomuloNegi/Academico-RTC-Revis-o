@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { lerConhecimento } from '../helpers'
-import { lerMatrizHumana, cfopsEmMaisDeUmGrupo, lerTabelaClassificacao, extrairModeloPrompt } from '@/application/matriz/LeitorMatriz'
+import { lerMatrizHumana, cfopsEmMaisDeUmGrupo, lerTabelaClassificacao, extrairModeloPrompt, lerTabelaCfop, cfopDeLinhasPlanilha, ehCClassTribDeReducao } from '@/application/matriz/LeitorMatriz'
 
 describe('LeitorMatriz · Grupamentos-CFOP do professor', () => {
   const matriz = lerMatrizHumana(lerConhecimento('Grupamentos-CFOP.md'))
@@ -55,5 +55,48 @@ describe('LeitorMatriz · Prompt Mestre', () => {
     expect(modelo).toContain('{{GRUPAMENTOS_CFOP}}')
     expect(modelo).toContain('{{CLASSIFICACAO_TRIBUTARIA}}')
     expect(modelo).not.toContain('Como a aplicação usa este arquivo')
+  })
+
+  it('v1.1: sem NCM e sem direção na entrada; literalidade nas reduções; novas sinalizações', () => {
+    const modelo = extrairModeloPrompt(lerConhecimento('Prompt-Mestre-RTC.md'))
+    expect(modelo).not.toMatch(/`ncm`|`direcoes`/)
+    expect(modelo).toContain('descricao_oficial_cfop')
+    expect(modelo).toMatch(/literalidade/i)
+    expect(modelo).toContain('"cfop_inexistente"')
+    expect(modelo).toContain('"reducao_literalidade"')
+  })
+})
+
+describe('LeitorMatriz · tabela oficial de CFOP', () => {
+  const tabela = lerTabelaCfop(lerConhecimento('cfop_oficial.json'))
+
+  it('carrega a tabela padrão (Siscomex) sem códigos repetidos', () => {
+    expect(tabela.registros.length).toBe(590)
+    expect(tabela.porCfop.get('5101')?.descricao).toMatch(/Venda de produção/i)
+    expect(tabela.porCfop.has('5999')).toBe(false)
+  })
+
+  it('converte as linhas de uma planilha com cabeçalho em qualquer linha', () => {
+    const linhas = [
+      ['CFOP: Código Fiscal'], [],
+      ['GRUPO CFOP', 'CFOP', 'DESCRIÇÃO_CFOP', 'Início Vigência'],
+      ['5000 - SAÍDAS', 5101, 'Venda de produção  do estabelecimento', new Date('2006-01-01T00:00:00Z')],
+      ['5000 - SAÍDAS', 5101, 'repetido', ''],
+      ['', 'x', 'lixo', ''],
+    ]
+    expect(cfopDeLinhasPlanilha(linhas)).toEqual([{ cfop: '5101', descricao: 'Venda de produção do estabelecimento', grupo: '5000 - SAÍDAS', inicioVigencia: '2006-01-01' }])
+    expect(() => cfopDeLinhasPlanilha([['a', 'b']])).toThrow(/cabeçalho/)
+  })
+
+  it('recusa JSON inválido ou sem CFOP válido', () => {
+    expect(() => lerTabelaCfop('{')).toThrow(/JSON/)
+    expect(() => lerTabelaCfop('[{"cfop":"12"}]')).toThrow(/Nenhum CFOP/)
+  })
+
+  it('identifica cClassTrib de redução de alíquota pela tabela oficial', () => {
+    const t = lerTabelaClassificacao(lerConhecimento('classificacao_tributaria.json'))
+    expect(ehCClassTribDeReducao(t, '200032')).toBe(true)
+    expect(ehCClassTribDeReducao(t, '000001')).toBe(false)
+    expect(ehCClassTribDeReducao(null, '200032')).toBe(false)
   })
 })

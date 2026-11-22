@@ -2,6 +2,28 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] — 22/11/2026
+
+Rodada 2, após o primeiro uso real com uma massa de 486 pares (decisões D21 a D31).
+
+### Mudado
+
+- **Corte da revisão:** pares por CFOP + CST + cClassTrib (antes também por NCM). Os NCMs de maior valor ficam na planilha só para conferência humana (D21).
+- **NCM e direção fora da IA:** os pares não levam mais NCM nem direção da operação (D22, D24).
+- **Chamadas em paralelo:** as vagas ativas do OpenRouter julgam lotes ao mesmo tempo, com reserva atômica de cota (D25). Opção "Vagas em paralelo" na configuração.
+- **Regime do emitente:** CRT 2 (Simples com excesso de sublimite) e CRT 4 (MEI) agora são distinguidos do CRT 1.
+- **Prompt Mestre v1.1:** regra da literalidade nas reduções, novas sinalizações e descrição oficial do CFOP na entrada.
+- O trabalho de revisão exportado começa pelas abas do resumo executivo e traz a descrição oficial do CFOP.
+
+### Incluído
+
+- **Escopo por regime do emitente** (D23): Regime Normal, excesso de sublimite e não identificado por padrão; Simples Nacional e MEI fora. Contagem do que ficou fora, por regime.
+- **Tabela oficial de CFOP** (fonte: Siscomex) como 4º arquivo da base de conhecimento, substituível por JSON ou pela planilha .xlsx (D29).
+- Sinalizações `cfop_inexistente` e `reducao_literalidade`; revisão humana obrigatória também quando a IA propõe um cClassTrib de redução (D22).
+- **Módulo 7, Resumo executivo** (D26 a D28): painel com empresa, amostra, conformidade por valor, principais operações, valor por grupo da matriz e pontos de atenção; impressão em PDF; abas no Excel; relatório executivo redigido pelo Gemini (modelo principal e reserva configuráveis).
+- Documentação: SDD completa (`docs/sdd/`), seção para IA (`docs/ia/PROMPT_DE_REPRODUCAO.md`), ADR-0007 e ADR-0008.
+- 181 testes automatizados (eram 162).
+
 ## [1.0.0] — 22/11/2026
 
 Primeira versão, construída na sessão inicial de desenvolvimento. Planejamento e decisões do Prof. Camargo; desenvolvimento em colaboração com Claude (Anthropic).
