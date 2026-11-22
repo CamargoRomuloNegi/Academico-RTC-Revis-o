@@ -20,7 +20,15 @@ export const DISCLAIMER =
 const ROTULO_SINALIZACAO: Record<string, string> = {
   duplicidade_matriz: 'CFOP em mais de um grupo (limitação da matriz)',
   cfop_fora_matriz: 'CFOP fora da matriz',
+  cfop_inexistente: 'CFOP não consta na tabela oficial',
   sem_classificacao: 'Sem CST/cClassTrib no XML',
+  reducao_literalidade: 'Redução de alíquota: conferir a literalidade (profissional)',
+}
+
+/** Rótulo legível de uma sinalização (exportado para a tela). */
+export function rotuloSinalizacao(s: string, cfop: string): string {
+  if (s === 'cfop_fora_matriz' && !cfop) return 'Sem CFOP (NFS-e): julgar pela essência do serviço'
+  return ROTULO_SINALIZACAO[s] ?? s
 }
 
 function simNao(v: boolean | undefined): string {
@@ -36,19 +44,19 @@ export function abaRevisao(linhas: LinhaRevisao[]): Planilha {
       return {
         'Par': par.id,
         'CFOP': par.cfop,
-        'NCM': par.ncm,
+        'Descrição oficial do CFOP': par.descricaoCfop,
         'Descrições (exemplo)': par.descricoesExemplo.join(' / '),
         'Tipo Doc': par.tiposDocumento.join(', '),
-        'Direção': par.direcoes.join(', '),
+        // NCM só para conferência humana: não é enviado à IA (D22)
+        'NCMs de maior valor (conferência humana)': par.ncms.join(', '),
+        'Qtd NCMs': par.qtdNcms,
         'Qtd Itens': par.qtdItens,
         'Valor Total (R$)': par.valorTotal,
         // Julgamento humano (matriz do professor)
         '[Humano] Grupo': par.enquadramentos.map((e) => e.grupo).join(' / '),
         '[Humano] Subgrupo': par.enquadramentos.map((e) => e.subgrupo).join(' / '),
         '[Humano] Essência': par.enquadramentos.map((e) => e.essencia).join(' / '),
-        'Sinalizações': par.sinalizacoes
-          .map((s) => (s === 'cfop_fora_matriz' && !par.cfop ? 'Sem CFOP (NFS-e): julgar pela essência do serviço' : ROTULO_SINALIZACAO[s] ?? s))
-          .join('; '),
+        'Sinalizações': par.sinalizacoes.map((s) => rotuloSinalizacao(s, par.cfop)).join('; '),
         // Classificação existente (XML)
         '[XML] CST': par.cstAtual,
         '[XML] cClassTrib': par.cClassTribAtual,

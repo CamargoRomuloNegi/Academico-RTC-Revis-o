@@ -7,6 +7,10 @@
  *   - Os pares são divididos em lotes (padrão: 10 por chamada).
  *   - RODÍZIO: o lote 1 vai para a vaga 1, o lote 2 para a vaga 2, e assim até a vaga 5,
  *     voltando à 1. Assim a planilha mostra os 5 modelos do OpenRouter lado a lado.
+ *   - PARALELO (D25): com "emParalelo", trabalham ao mesmo tempo tantas tarefas quantas
+ *     forem as vagas ativas do OpenRouter. Cada tarefa pega o próximo lote livre; pelo
+ *     rodízio, lotes simultâneos começam em vagas diferentes. As cotas são respeitadas
+ *     por ControleDeCota.reservar(), que é atômico.
  *   - FALLBACK: se a vaga falhar (erro, limite, cota esgotada ou resposta inválida), os
  *     pares pendentes do lote seguem para as outras vagas do OpenRouter e, por fim, para a
  *     vaga 6 (Gemini).
@@ -31,6 +35,7 @@ import { dividirEmLotes } from '@/application/services/AglutinacaoService'
 import { ControleDeCota, relogioPadrao, type Relogio } from './ControleDeCota'
 import { montarMensagens } from './MontadorPrompt'
 import { validarResposta, validarSemantica } from './ValidadorResposta'
+import { ehCClassTribDeReducao } from '@/application/matriz/LeitorMatriz'
 
 /** Rótulo legível de uma vaga, usado na planilha. */
 export function rotuloVaga(vaga: VagaModelo): string {
@@ -38,8 +43,11 @@ export function rotuloVaga(vaga: VagaModelo): string {
 }
 
 export interface ProgressoRevisao {
-  loteAtual: number
+  /** Lotes já concluídos. */
+  lotesConcluidos: number
   totalLotes: number
+  /** Chamadas em andamento neste momento. */
+  emAndamento: number
   paresJulgados: number
   totalPares: number
   mensagem: string
@@ -71,11 +79,13 @@ export interface ResultadoRevisao {
 }
 
 /** Regra final de revisão humana obrigatória (código + IA). */
-function exigeRevisaoHumana(linha: LinhaRevisao): boolean {
+export function exigeRevisaoHumana(linha: LinhaRevisao, tabela?: TabelaClassificacao): boolean {
   const s = linha.par.sinalizacoes
-  if (s.includes('duplicidade_matriz') || s.includes('cfop_fora_matriz')) return true
+  if (s.some((x) => x === 'duplicidade_matriz' || x === 'cfop_fora_matriz' || x === 'cfop_inexistente' || x === 'reducao_literalidade')) return true
   if (!linha.resultado) return true
   if (linha.validacao && !linha.validacao.ok) return true
+  // Proposta de redução de alíquota: elegibilidade só pelo profissional (D22)
+  if (ehCClassTribDeReducao(tabela, linha.resultado.cclasstrib_proposto)) return true
   return linha.resultado.revisao_humana_obrigatoria || linha.resultado.confianca === 'BAIXA'
 }
 
@@ -89,6 +99,13 @@ export function cadeiaDoLote(indiceLote: number, vagas: VagaModelo[]): VagaModel
   return [...rodizio.slice(inicio), ...rodizio.slice(0, inicio), ...reservas]
 }
 
+/** Quantas tarefas trabalham ao mesmo tempo. */
+export function quantidadeDeTarefas(vagas: VagaModelo[], parametros: ParametrosExecucao, totalLotes: number): number {
+  if (!parametros.emParalelo) return 1
+  const rodizio = vagas.filter((v) => v.ativo && v.modelo.trim() && v.provedor === 'openrouter').length
+  return Math.max(1, Math.min(rodizio || 1, totalLotes))
+}
+
 export async function executarRevisao(entrada: EntradaRevisao, deps: DependenciasRevisao): Promise<ResultadoRevisao> {
   const { pares, vagas, parametros, promptSistema, tabela, signal } = entrada
   const relogio = deps.relogio ?? relogioPadrao
@@ -100,14 +117,17 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
   const linhas = new Map<string, LinhaRevisao>(pares.map((p) => [p.id, { par: p, tentativas: [], revisaoHumanaObrigatoria: true }]))
   const chamadas: RegistroChamada[] = []
   let julgados = 0
+  let concluidos = 0
+  let emAndamento = 0
 
-  const progresso = (loteAtual: number, mensagem: string) =>
-    entrada.aoProgredir?.({ loteAtual, totalLotes: lotes.length, paresJulgados: julgados, totalPares: pares.length, mensagem })
+  const progresso = (mensagem: string) =>
+    entrada.aoProgredir?.({ lotesConcluidos: concluidos, totalLotes: lotes.length, emAndamento, paresJulgados: julgados, totalPares: pares.length, mensagem })
 
-  for (let l = 0; l < lotes.length; l++) {
-    if (signal?.aborted) break
+  /** Julga um lote, percorrendo a cadeia de vagas até não sobrar par pendente. */
+  async function processarLote(l: number): Promise<void> {
     let pendentes = [...(lotes[l] as ParUnico[])]
     const motivos = new Map<string, string>()
+    const nome = `Lote ${l + 1}/${lotes.length}`
 
     for (const vaga of cadeiaDoLote(l, vagas)) {
       if (pendentes.length === 0 || signal?.aborted) break
@@ -115,17 +135,16 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
       const provedor: IdProvedor = vaga.provedor
       for (const p of pendentes) linhas.get(p.id)?.tentativas.push(`Vaga ${vaga.posicao}`)
 
-      if (controle.restanteHoje(provedor) <= 0) {
+      progresso(`${nome}: aguardando a vez de ${rotulo}`)
+      const reservada = await controle.reservar(`vaga-${vaga.posicao}`, vaga.rpm, provedor, signal)
+      if (signal?.aborted) break
+      if (!reservada) {
         chamadas.push({ lote: l + 1, vaga: vaga.posicao, provedor, modelo: vaga.modelo, inicio: new Date(relogio.agora()).toISOString(), duracaoMs: 0, status: 'PULADA', paresEnviados: pendentes.length, paresValidos: 0, mensagem: 'Cota diária da sessão esgotada para este provedor.' })
         continue
       }
 
-      progresso(l + 1, `Lote ${l + 1}/${lotes.length}: aguardando a vez de ${rotulo}`)
-      await controle.aguardarVez(`vaga-${vaga.posicao}`, vaga.rpm, signal)
-      if (signal?.aborted) break
-      controle.registrar(`vaga-${vaga.posicao}`, provedor)
-
-      progresso(l + 1, `Lote ${l + 1}/${lotes.length}: ${pendentes.length} pares em julgamento por ${rotulo}`)
+      emAndamento++
+      progresso(`${nome}: ${pendentes.length} pares em julgamento por ${rotulo}`)
       const inicio = relogio.agora()
       const registro: RegistroChamada = { lote: l + 1, vaga: vaga.posicao, provedor, modelo: vaga.modelo, inicio: new Date(inicio).toISOString(), duracaoMs: 0, status: 'FALHA', paresEnviados: pendentes.length, paresValidos: 0 }
       try {
@@ -144,7 +163,7 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
           linha.provedor = vaga.provedor
           linha.julgadoEm = agora
           linha.erro = undefined
-          linha.revisaoHumanaObrigatoria = exigeRevisaoHumana(linha)
+          linha.revisaoHumanaObrigatoria = exigeRevisaoHumana(linha, tabela)
           julgados++
           entrada.aoConcluirLinha?.(linha)
         }
@@ -157,11 +176,11 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
         registro.duracaoMs = relogio.agora() - inicio
         const mensagem = erro instanceof Error ? erro.message : String(erro)
         registro.mensagem = mensagem
-        if (erro instanceof ErroProvedor && erro.codigo === 'cancelado') {
-          chamadas.push(registro)
-          break
+        if (!(erro instanceof ErroProvedor && erro.codigo === 'cancelado')) {
+          for (const p of pendentes) motivos.set(p.id, `${rotulo}: ${mensagem}`)
         }
-        for (const p of pendentes) motivos.set(p.id, `${rotulo}: ${mensagem}`)
+      } finally {
+        emAndamento--
       }
       chamadas.push(registro)
     }
@@ -174,13 +193,28 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
       linha.revisaoHumanaObrigatoria = true
       entrada.aoConcluirLinha?.(linha)
     }
-    progresso(l + 1, `Lote ${l + 1}/${lotes.length} concluído.`)
+    concluidos++
+    progresso(`${nome} concluído.`)
   }
+
+  // Fila de lotes compartilhada pelas tarefas (JavaScript roda uma coisa de cada vez,
+  // então "proximo++" é seguro: só as chamadas de rede acontecem em paralelo).
+  let proximo = 0
+  const tarefa = async () => {
+    while (!signal?.aborted) {
+      const l = proximo++
+      if (l >= lotes.length) return
+      await processarLote(l)
+    }
+  }
+  await Promise.all(Array.from({ length: quantidadeDeTarefas(vagas, parametros, lotes.length) }, tarefa))
 
   // Pares de lotes não iniciados (interrupção)
   for (const linha of linhas.values()) {
     if (!linha.resultado && !linha.erro) linha.erro = 'Execução interrompida pelo usuário antes do julgamento.'
   }
 
+  // Ordem das chamadas por início (em paralelo elas terminam fora de ordem)
+  chamadas.sort((a, b) => a.inicio.localeCompare(b.inicio) || a.lote - b.lote)
   return { linhas: [...linhas.values()], chamadas, interrompida: Boolean(signal?.aborted) }
 }

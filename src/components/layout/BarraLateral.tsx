@@ -35,7 +35,7 @@ export function BarraLateral() {
   }
 
   return (
-    <aside className="flex w-[var(--sidebar-width)] shrink-0 flex-col bg-[var(--color-ink)] text-white">
+    <aside className="nao-imprimir flex w-[var(--sidebar-width)] shrink-0 flex-col bg-[var(--color-ink)] text-white">
       <div className="border-b border-[var(--color-ink-border)] px-5 pb-4 pt-5">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: 'linear-gradient(135deg,#2f54c9,#4b6fe0)' }}>
@@ -60,7 +60,7 @@ export function BarraLateral() {
       </nav>
       <div className="border-t border-[var(--color-ink-border)] px-5 py-3.5">
         <p className="text-[0.66rem] leading-relaxed text-[#5c6474]">XMLs processados no seu navegador. Nada é gravado em servidor.</p>
-        <p className="font-data mt-1.5 text-[0.6rem] text-[#3b4250]">v1.0.0 · Prof. Camargo &amp; Claude</p>
+        <p className="font-data mt-1.5 text-[0.6rem] text-[#3b4250]">v1.1.0 · Prof. Camargo &amp; Claude</p>
       </div>
     </aside>
   )

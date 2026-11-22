@@ -10,7 +10,9 @@ const ORIGENS = [
   ['Identidade visual (design tokens, tipografia)', 'comercial-assistida-xml (Prof. Camargo)'],
   ['Cliente de IA compatível com OpenAI, retentativa, redator de segredos, chaves só em memória', 'ITSA-Agente (Prof. Camargo), portado de Python para TypeScript'],
   ['Prompt Mestre, matriz de decisão e Grupamentos-CFOP', 'Prof. Camargo (adaptados para automação em lote)'],
-  ['Leitor de XSD, extrator por caminho, aglutinação, orquestrador com rodízio e fallback, controle de cota, exportação xls/csv/txt', 'Novos neste projeto'],
+  ['Escopo por regime do emitente, corte CFOP + CST + cClassTrib, regra da literalidade nas reduções e resumo executivo por valor', 'Decisões do Prof. Camargo na rodada 2 (v1.1)'],
+  ['Tabela oficial de CFOP', 'Portal Siscomex (gov.br); o CONFAZ é o detentor oficial do CFOP'],
+  ['Leitor de XSD, extrator por caminho, aglutinação, orquestrador com rodízio, paralelismo e fallback, controle de cota, painel executivo, exportação xls/csv/txt', 'Novos neste projeto'],
 ]
 
 export default function PaginaSobre() {
@@ -34,7 +36,8 @@ export default function PaginaSobre() {
         <Cartao titulo="Princípios">
           <ul className="list-disc space-y-1.5 pl-5 text-[0.85rem] text-[var(--color-text-secondary)]">
             <li>Sem banco de dados e sem persistência: tudo vive na memória da aba.</li>
-            <li>XMLs processados no navegador; só os pares únicos vão para a IA escolhida.</li>
+            <li>XMLs processados no navegador; só os pares únicos (sem NCM e sem dados de pessoas) vão para a IA escolhida.</li>
+            <li>Reduções de alíquota exigem literalidade: a ferramenta sinaliza, o profissional decide.</li>
             <li>Chaves de API só em memória, nunca gravadas nem exibidas.</li>
             <li>Módulos independentes, para crescer sem quebrar o que já existe.</li>
             <li>A IA apoia, mas não substitui, o julgamento profissional.</li>

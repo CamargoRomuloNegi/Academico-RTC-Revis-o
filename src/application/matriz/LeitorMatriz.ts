@@ -24,8 +24,10 @@ import {
   type EnquadramentoCfop,
   type GrupoMestre,
   type MatrizHumana,
+  type RegistroCfop,
   type RegistroClassificacao,
   type SubgrupoMatriz,
+  type TabelaCfop,
   type TabelaClassificacao,
 } from '@/domain/models/Matriz'
 
@@ -119,6 +121,93 @@ export function lerTabelaClassificacao(json: string): TabelaClassificacao {
     throw new Error(`Nenhum registro com a coluna "${COLUNA_CCLASSTRIB}" foi encontrado.`)
   }
   return { registros, porCClassTrib }
+}
+
+/** Coluna da tabela oficial que indica redução de alíquota ("Sim"/"Não"). */
+export const COLUNA_REDUCAO_ALIQUOTA = 'Redução de Alíquota'
+
+/**
+ * Indica se o cClassTrib é de REDUÇÃO DE ALÍQUOTA na tabela oficial (decisão D22).
+ * A ferramenta não confirma nem nega a elegibilidade: a norma exige literalidade quanto ao
+ * produto e ao uso, e isso é trabalho do profissional contábil. O código só sinaliza.
+ */
+export function ehCClassTribDeReducao(tabela: TabelaClassificacao | null | undefined, cClassTrib: string): boolean {
+  if (!tabela || !cClassTrib) return false
+  const r = tabela.porCClassTrib.get(cClassTrib.trim())
+  return !!r && String(r[COLUNA_REDUCAO_ALIQUOTA] ?? '').trim().toLowerCase() === 'sim'
+}
+
+// ---------------------------------------------------------------------------
+// TABELA OFICIAL DE CFOP (decisão D29)
+// ---------------------------------------------------------------------------
+
+function indexarCfop(registros: RegistroCfop[]): TabelaCfop {
+  const porCfop = new Map<string, RegistroCfop>()
+  for (const r of registros) if (!porCfop.has(r.cfop)) porCfop.set(r.cfop, r)
+  if (porCfop.size === 0) throw new Error('Nenhum CFOP válido (4 dígitos) foi encontrado na tabela.')
+  return { registros: [...porCfop.values()], porCfop }
+}
+
+function normalizarCfop(valor: unknown): string {
+  const d = String(valor ?? '').replace(/\D/g, '')
+  return d.length === 4 ? d : ''
+}
+
+/**
+ * Lê a tabela de CFOP no formato do projeto (cfop_oficial.json):
+ * [{ "cfop": "1101", "descricao": "...", "grupo": "...", "inicioVigencia": "2006-01-01" }]
+ */
+export function lerTabelaCfop(json: string): TabelaCfop {
+  let dados: unknown
+  try {
+    dados = JSON.parse(json)
+  } catch {
+    throw new Error('A tabela de CFOP não é um JSON válido.')
+  }
+  if (!Array.isArray(dados)) throw new Error('A tabela de CFOP deve ser uma lista de registros.')
+  const registros: RegistroCfop[] = []
+  for (const r of dados as Record<string, unknown>[]) {
+    const cfop = normalizarCfop(r?.cfop)
+    if (!cfop) continue
+    registros.push({
+      cfop,
+      descricao: String(r.descricao ?? '').replace(/\s+/g, ' ').trim(),
+      grupo: String(r.grupo ?? '').trim(),
+      inicioVigencia: String(r.inicioVigencia ?? '').trim(),
+    })
+  }
+  return indexarCfop(registros)
+}
+
+/**
+ * Converte as linhas de uma planilha de CFOP (ex.: a publicada no portal do Siscomex)
+ * para o formato do projeto. Procura a linha de cabeçalho que tenha "CFOP" e uma coluna
+ * de descrição; as colunas de grupo e de vigência são opcionais.
+ */
+export function cfopDeLinhasPlanilha(linhas: unknown[][]): RegistroCfop[] {
+  const norm = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim()
+  const iCab = linhas.findIndex((l) => l.some((c) => norm(c) === 'CFOP') && l.some((c) => norm(c).startsWith('DESCRI')))
+  if (iCab < 0) throw new Error('Não encontrei o cabeçalho da planilha (colunas "CFOP" e "Descrição").')
+  const cab = linhas[iCab]!.map(norm)
+  const col = {
+    cfop: cab.findIndex((c) => c === 'CFOP'),
+    descricao: cab.findIndex((c) => c.startsWith('DESCRI')),
+    grupo: cab.findIndex((c) => c.startsWith('GRUPO')),
+    vigencia: cab.findIndex((c) => c.includes('VIGENCIA')),
+  }
+  const registros: RegistroCfop[] = []
+  for (const l of linhas.slice(iCab + 1)) {
+    const cfop = normalizarCfop(l[col.cfop])
+    if (!cfop) continue
+    const vig = col.vigencia >= 0 ? l[col.vigencia] : ''
+    registros.push({
+      cfop,
+      descricao: String(l[col.descricao] ?? '').replace(/\s+/g, ' ').trim(),
+      grupo: col.grupo >= 0 ? String(l[col.grupo] ?? '').trim() : '',
+      inicioVigencia: vig instanceof Date ? vig.toISOString().slice(0, 10) : String(vig ?? '').trim(),
+    })
+  }
+  return indexarCfop(registros).registros
 }
 
 export const MARCADOR_INICIO_PROMPT = '=== INÍCIO DO PROMPT DE SISTEMA ==='

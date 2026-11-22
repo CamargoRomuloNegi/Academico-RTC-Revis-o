@@ -2,7 +2,7 @@
  * Mapa das etapas da aplicação (usado pela barra lateral e pela tela inicial).
  * Para acrescentar um módulo: crie a página em src/app/<rota>/page.tsx e inclua-a aqui.
  */
-import { BookOpen, Bot, Database, Download, FileUp, Home, Info, ListChecks, Settings2 } from 'lucide-react'
+import { BookOpen, Bot, ChartColumn, Database, Download, FileUp, Home, Info, ListChecks, Settings2 } from 'lucide-react'
 
 export const ETAPAS = [
   { href: '/', rotulo: 'Início', descricao: 'Visão geral', icone: Home, modulo: '' },
@@ -12,6 +12,7 @@ export const ETAPAS = [
   { href: '/exportacao', rotulo: 'Exportação', descricao: 'xlsx, xls, csv, txt', icone: Download, modulo: 'Módulo 5' },
   { href: '/ia/configuracao', rotulo: 'Configurar IA', descricao: 'Chaves e modelos', icone: Settings2, modulo: 'Módulo 6' },
   { href: '/ia/revisao', rotulo: 'Revisão por IA', descricao: 'Matriz de decisão', icone: Bot, modulo: 'Módulo 6' },
+  { href: '/resumo', rotulo: 'Resumo executivo', descricao: 'Painel e relatório', icone: ChartColumn, modulo: 'Módulo 7' },
 ] as const
 
 export const LINKS_APOIO = [

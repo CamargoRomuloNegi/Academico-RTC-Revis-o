@@ -134,3 +134,14 @@ html {
 
 @keyframes girar { to { transform: rotate(360deg); } }
 .girando { animation: girar 1s linear infinite; }
+
+/* Impressão (resumo executivo → PDF): só o conteúdo, sem barra lateral nem botões. */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff; }
+  .nao-imprimir { display: none !important; }
+  body > div { height: auto !important; overflow: visible !important; display: block !important; }
+  main { overflow: visible !important; padding: 0 !important; }
+  .cartao { box-shadow: none !important; break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -30,7 +30,16 @@ export interface Conhecimento {
   promptMestre: string
   grupamentos: string
   classificacaoJson: string
-  origem: Record<'promptMestre' | 'grupamentos' | 'classificacaoJson', string>
+  /** Tabela oficial de CFOP no formato do projeto (JSON). Uma planilha enviada é convertida. */
+  cfopJson: string
+  origem: Record<'promptMestre' | 'grupamentos' | 'classificacaoJson' | 'cfopJson', string>
+}
+
+/** Relatório executivo gerado pela IA (D26, D28). */
+export interface RelatorioExecutivo {
+  texto: string
+  modelo: string
+  geradoEm: string
 }
 
 /** Vagas iniciais: 5 do OpenRouter (rodízio) e 1 do Gemini (fallback). */
@@ -87,6 +96,10 @@ interface EstadoExtrator {
   definirProgresso: (p: ProgressoRevisao) => void
   concluirRevisao: (linhas: LinhaRevisao[], chamadas: RegistroChamada[], uso: Partial<Record<IdProvedor, number>>) => void
   limparRevisao: () => void
+
+  // --- Resumo executivo (D26) ---
+  relatorio: RelatorioExecutivo | null
+  definirRelatorio: (r: RelatorioExecutivo | null) => void
 }
 
 export const useExtratorStore = create<EstadoExtrator>((set) => ({
@@ -94,9 +107,9 @@ export const useExtratorStore = create<EstadoExtrator>((set) => ({
   logs: [],
   cnpjRaiz: null,
   cnpjAutomatico: true,
-  definirDocumentos: (documentos, cnpjRaiz, automatico) => set({ documentos, cnpjRaiz, cnpjAutomatico: automatico, linhasRevisao: [], chamadas: [] }),
+  definirDocumentos: (documentos, cnpjRaiz, automatico) => set({ documentos, cnpjRaiz, cnpjAutomatico: automatico, linhasRevisao: [], chamadas: [], relatorio: null }),
   acrescentarLogs: (logs) => set((s) => ({ logs: [...s.logs, ...logs].slice(-5000) })),
-  limparExtracao: () => set({ documentos: [], logs: [], cnpjRaiz: null, cnpjAutomatico: true, linhasRevisao: [], chamadas: [] }),
+  limparExtracao: () => set({ documentos: [], logs: [], cnpjRaiz: null, cnpjAutomatico: true, linhasRevisao: [], chamadas: [], relatorio: null }),
 
   camposSelecionados: [],
   alternarCampo: (campo) =>
@@ -130,7 +143,12 @@ export const useExtratorStore = create<EstadoExtrator>((set) => ({
   vagas: VAGAS_INICIAIS,
   atualizarVaga: (posicao, mudanca) => set((s) => ({ vagas: s.vagas.map((v) => (v.posicao === posicao ? { ...v, ...mudanca } : v)) })),
   parametros: PARAMETROS_PADRAO,
-  atualizarParametros: (mudanca) => set((s) => ({ parametros: { ...s.parametros, ...mudanca } })),
+  // Mudar o escopo de regimes muda os pares (e seus ids): a revisão anterior deixa de valer.
+  atualizarParametros: (mudanca) =>
+    set((s) => ({
+      parametros: { ...s.parametros, ...mudanca },
+      ...(mudanca.regimesNoEscopo ? { linhasRevisao: [], chamadas: [], progresso: null, relatorio: null } : {}),
+    })),
 
   linhasRevisao: [],
   chamadas: [],
@@ -153,5 +171,8 @@ export const useExtratorStore = create<EstadoExtrator>((set) => ({
       for (const l of linhas) porId.set(l.par.id, l)
       return { linhasRevisao: [...porId.values()].sort((a, b) => a.par.id.localeCompare(b.par.id)), chamadas: [...s.chamadas, ...chamadas], emExecucao: false, usoSessao: uso }
     }),
-  limparRevisao: () => set({ linhasRevisao: [], chamadas: [], progresso: null }),
+  limparRevisao: () => set({ linhasRevisao: [], chamadas: [], progresso: null, relatorio: null }),
+
+  relatorio: null,
+  definirRelatorio: (relatorio) => set({ relatorio }),
 }))

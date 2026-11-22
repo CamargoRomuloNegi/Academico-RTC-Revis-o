@@ -8,27 +8,30 @@ import type { IdProvedor, ParametrosExecucao } from '@/domain/models/RevisaoIA'
 import { enviarChat } from '@/infrastructure/ia/ClienteIA'
 import { ControleDeCota } from './ControleDeCota'
 import { executarRevisao, type EntradaRevisao, type ResultadoRevisao } from './OrquestradorRevisao'
+import { montarMensagensRelatorio, type IndicadoresResumo } from '@/application/resumo/ResumoExecutivo'
 
 /** Caminhos públicos dos arquivos padrão (pasta public/conhecimento). */
 export const ARQUIVOS_CONHECIMENTO = {
   promptMestre: '/conhecimento/Prompt-Mestre-RTC.md',
   grupamentos: '/conhecimento/Grupamentos-CFOP.md',
   classificacaoJson: '/conhecimento/classificacao_tributaria.json',
+  cfopJson: '/conhecimento/cfop_oficial.json',
 } as const
 
-/** Baixa os três arquivos padrão da base de conhecimento. */
-export async function carregarConhecimentoPadrao(): Promise<{ promptMestre: string; grupamentos: string; classificacaoJson: string }> {
+/** Baixa os quatro arquivos padrão da base de conhecimento. */
+export async function carregarConhecimentoPadrao(): Promise<{ promptMestre: string; grupamentos: string; classificacaoJson: string; cfopJson: string }> {
   const ler = async (url: string) => {
     const r = await fetch(url, { cache: 'no-store' })
     if (!r.ok) throw new Error(`Não foi possível carregar ${url} (HTTP ${r.status}).`)
     return r.text()
   }
-  const [promptMestre, grupamentos, classificacaoJson] = await Promise.all([
+  const [promptMestre, grupamentos, classificacaoJson, cfopJson] = await Promise.all([
     ler(ARQUIVOS_CONHECIMENTO.promptMestre),
     ler(ARQUIVOS_CONHECIMENTO.grupamentos),
     ler(ARQUIVOS_CONHECIMENTO.classificacaoJson),
+    ler(ARQUIVOS_CONHECIMENTO.cfopJson),
   ])
-  return { promptMestre, grupamentos, classificacaoJson }
+  return { promptMestre, grupamentos, classificacaoJson, cfopJson }
 }
 
 /**
@@ -76,4 +79,39 @@ export function revisar(entrada: Omit<EntradaRevisao, 'controle'>): Promise<Resu
         }),
     },
   )
+}
+
+/**
+ * Gera o relatório executivo com o Gemini (D28): tenta o modelo principal e, se falhar,
+ * o de reserva. Conta na cota diária do Gemini da sessão.
+ */
+export async function gerarRelatorioExecutivo(
+  indicadores: IndicadoresResumo,
+  p: ParametrosExecucao,
+  signal?: AbortSignal,
+): Promise<{ texto: string; modelo: string }> {
+  const controle = controleDaSessao(p)
+  const modelos = [...new Set([p.modeloResumo, p.modeloResumoReserva].filter(Boolean))]
+  const falhas: string[] = []
+  for (const modelo of modelos) {
+    if (!(await controle.reservar('relatorio-gemini', 5, 'gemini', signal))) {
+      throw new Error('Cota diária do Gemini nesta sessão esgotada (ajuste em Configurar IA).')
+    }
+    try {
+      const r = await enviarChat({
+        provedor: 'gemini',
+        modelo,
+        mensagens: montarMensagensRelatorio(indicadores),
+        temperatura: 0.3,
+        timeoutMs: p.tempoLimiteSegundos * 1000,
+        modo: p.modoConexao,
+        signal,
+      })
+      return { texto: r.texto.replace(/^```(?:markdown)?\s*|```\s*$/g, '').trim(), modelo: `gemini::${modelo}` }
+    } catch (e) {
+      falhas.push(`${modelo}: ${e instanceof Error ? e.message : String(e)}`)
+      if (signal?.aborted) break
+    }
+  }
+  throw new Error(`Não foi possível gerar o relatório. ${falhas.join(' | ')}`)
 }

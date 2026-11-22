@@ -16,10 +16,15 @@ export type DocumentType = 'NFE' | 'NFCE' | 'CTE' | 'NFSE' | 'UNKNOWN'
 
 /**
  * Regime tributário do emitente.
- * Fonte NF-e/CT-e: campo CRT (1/2=Simples, 3=RPA).
- * Fonte NFS-e Nacional: campo opSimpNac (0=RPA, 1=MEI, 2=SN, 3=SN-Excesso).
+ * Fonte NF-e/NFC-e/CT-e: campo CRT do emitente
+ *   1 = Simples Nacional → SIMPLES_NACIONAL
+ *   2 = Simples Nacional com excesso de sublimite → SIMPLES_EXCESSO
+ *       (destaca os tributos como um contribuinte do regime normal; decisão D23)
+ *   3 = Regime Normal → RPA
+ *   4 = MEI → MEI
+ * Fonte NFS-e Nacional: campo opSimpNac (1 = não optante/RPA, 2 = MEI, 3 = ME/EPP).
  */
-export type TaxRegime = 'SIMPLES_NACIONAL' | 'MEI' | 'RPA' | 'UNKNOWN'
+export type TaxRegime = 'SIMPLES_NACIONAL' | 'SIMPLES_EXCESSO' | 'MEI' | 'RPA' | 'UNKNOWN'
 
 /** Status do processamento do documento */
 export type DocumentStatus = 'VALID' | 'SCHEMA_ERROR' | 'PARTIAL'

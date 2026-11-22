@@ -3,16 +3,17 @@
  * Módulo 6 (parte 2) · Revisão por IA: aglutina os itens em pares únicos, executa o
  * julgamento com rodízio de modelos e fallback, mostra o andamento e exporta o trabalho.
  */
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bot, Download, Loader2, Play, RotateCcw, Square } from 'lucide-react'
 import { useExtratorStore } from '@/application/store/useExtratorStore'
-import { aglutinarPares, dividirEmLotes } from '@/application/services/AglutinacaoService'
+import { dividirEmLotes } from '@/application/services/AglutinacaoService'
 import { montarPromptSistema } from '@/application/ia/MontadorPrompt'
-import { montarPlanilhasRevisao } from '@/application/ia/PlanilhaRevisao'
+import { montarPlanilhasRevisao, rotuloSinalizacao } from '@/application/ia/PlanilhaRevisao'
+import { calcularIndicadores, planilhasResumo } from '@/application/resumo/ResumoExecutivo'
 import { revisar, usoDaSessao } from '@/application/ia/ServicoRevisao'
 import { baixar, FORMATOS, gerarArquivo, hojeIso, type FormatoExportacao } from '@/application/services/ExportService'
-import type { LinhaRevisao, ParUnico } from '@/domain/models/RevisaoIA'
+import { ROTULO_REGIME, type LinhaRevisao } from '@/domain/models/RevisaoIA'
 import { formatBRL } from '@/lib/utils'
 import { CabecalhoPagina } from '@/components/ui/CabecalhoPagina'
 import { Cartao } from '@/components/ui/Cartao'
@@ -20,7 +21,7 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Selo } from '@/components/ui/Selo'
 import { Estatistica } from '@/components/ui/Estatistica'
 import { BarraProgresso } from '@/components/ui/BarraProgresso'
-import { useConhecimento } from '@/components/ia/useConhecimento'
+import { useAglutinacao } from '@/components/ia/useAglutinacao'
 
 const COR_PARECER = { CONCORDA: 'sucesso', DIVERGE: 'alerta', PROPOSTA_INICIAL: 'primario' } as const
 
@@ -31,13 +32,12 @@ function versaoPrompt(texto: string): string {
 
 export default function PaginaRevisao() {
   const s = useExtratorStore()
-  const { conhecimento, matriz, tabela } = useConhecimento()
+  const { conhecimento, tabela, tabelaCfop, pares, escopo } = useAglutinacao()
   const [formato, setFormato] = useState<FormatoExportacao>('xlsx')
   const [erro, setErro] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<'todos' | 'divergentes' | 'revisao' | 'falhas'>('todos')
   const cancelador = useRef<AbortController | null>(null)
 
-  const pares = useMemo<ParUnico[]>(() => (matriz ? aglutinarPares(s.documentos, matriz) : []), [s.documentos, matriz])
   const vagasAtivas = s.vagas.filter((v) => v.ativo && v.modelo.trim())
   const p = s.parametros
   const lotes = dividirEmLotes(pares, p.paresPorLote).length
@@ -81,6 +81,9 @@ export default function PaginaRevisao() {
   async function exportar() {
     if (!conhecimento) return
     try {
+      const resumo = escopo
+        ? planilhasResumo(calcularIndicadores({ documentos: s.documentos, cnpjRaiz: s.cnpjRaiz, escopo, pares, linhas: s.linhasRevisao, tabelaCfop }), s.relatorio)
+        : []
       const planilhas = montarPlanilhasRevisao(s.linhasRevisao, s.chamadas, {
         cnpjRaiz: s.cnpjRaiz,
         documentos: s.documentos.length,
@@ -88,7 +91,7 @@ export default function PaginaRevisao() {
         versaoPrompt: versaoPrompt(conhecimento.promptMestre),
         paresPorLote: p.paresPorLote,
       })
-      baixar(await gerarArquivo(planilhas, formato, `revisao-ia-rtc-${hojeIso()}`))
+      baixar(await gerarArquivo([...resumo, ...planilhas], formato, `revisao-ia-rtc-${hojeIso()}`))
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
     }
@@ -114,15 +117,25 @@ export default function PaginaRevisao() {
         titulo="Revisão por IA"
         descricao={
           <>
-            Os itens são aglutinados por <strong>CFOP + NCM + CST + cClassTrib</strong>, e cada par único é julgado pela matriz de decisão. Ao lado
+            Os itens são aglutinados por <strong>CFOP + CST + cClassTrib</strong>, e cada par único é julgado pela matriz de decisão. Ao lado
             do julgamento humano (sua matriz) e da classificação do XML, a IA <strong>concorda</strong> ou <strong>propõe</strong> outra classificação,
-            com fundamentação.
+            com fundamentação. Só entram itens de emitentes no escopo de regime definido em Configurar IA.
           </>
         }
       />
 
+      {escopo && escopo.itensForaDoEscopo > 0 && (
+        <div className="mb-4">
+          <Aviso tipo="info" titulo="Escopo por regime do emitente">
+            Revisados: {escopo.regimesNoEscopo.map((r) => ROTULO_REGIME[r]).join(', ')}. Ficaram fora{' '}
+            <strong>{escopo.itensForaDoEscopo}</strong> itens ({formatBRL(escopo.valorForaDoEscopo)}):{' '}
+            {Object.entries(escopo.porRegime).filter(([r]) => !escopo.regimesNoEscopo.includes(r as keyof typeof ROTULO_REGIME)).map(([r, v]) => `${ROTULO_REGIME[r as keyof typeof ROTULO_REGIME]} · ${v.itens} itens`).join('; ')}.
+          </Aviso>
+        </div>
+      )}
+
       <div className="mb-5 grid gap-3 md:grid-cols-5">
-        <Estatistica rotulo="Pares únicos" valor={pares.length} detalhe={`de ${s.documentos.reduce((n, d) => n + d.items.length, 0)} itens`} />
+        <Estatistica rotulo="Pares únicos" valor={pares.length} detalhe={`de ${escopo?.itensNoEscopo ?? 0} itens no escopo`} />
         <Estatistica rotulo="Sem classificação" valor={pares.filter((x) => x.sinalizacoes.includes('sem_classificacao')).length} detalhe="IA propõe do zero" />
         <Estatistica rotulo="Fora da matriz" valor={pares.filter((x) => x.sinalizacoes.includes('cfop_fora_matriz')).length} detalhe="revisão humana" />
         <Estatistica rotulo="Duplicidade" valor={pares.filter((x) => x.sinalizacoes.includes('duplicidade_matriz')).length} detalhe="CFOP em 2 grupos" />
@@ -179,14 +192,19 @@ export default function PaginaRevisao() {
           <div className="max-h-[620px] overflow-auto">
             <table className="tabela">
               <thead>
-                <tr><th>Par</th><th>CFOP · NCM</th><th>Humano</th><th>XML</th><th>IA</th><th>Parecer</th><th>Justificativa</th><th>Modelo</th><th /></tr>
+                <tr><th>Par</th><th>CFOP</th><th>Humano</th><th>XML</th><th>IA</th><th>Parecer</th><th>Justificativa</th><th>Modelo</th><th /></tr>
               </thead>
               <tbody>
                 {linhas.map((l) => (
                   <tr key={l.par.id}>
                     <td className="font-data text-[0.74rem]">{l.par.id}</td>
-                    <td className="font-data text-[0.74rem]">{l.par.cfop || '—'}<span className="block text-[var(--color-text-muted)]">{l.par.ncm}</span><span className="block font-sans text-[0.7rem] text-[var(--color-text-muted)]">{formatBRL(l.par.valorTotal)}</span></td>
-                    <td className="text-[0.76rem]">{l.par.enquadramentos.map((e) => `${e.grupo} · ${e.subgrupo}`).join(' / ') || <Selo cor="alerta">{l.par.cfop ? 'fora da matriz' : 'sem CFOP (NFS-e)'}</Selo>}</td>
+                    <td className="max-w-[200px] font-data text-[0.74rem]">{l.par.cfop || '—'}<span className="block font-sans text-[0.7rem] leading-snug text-[var(--color-text-muted)]">{l.par.descricaoCfop}</span><span className="block font-sans text-[0.7rem] text-[var(--color-text-muted)]">{formatBRL(l.par.valorTotal)}</span></td>
+                    <td className="text-[0.76rem]">
+                      {l.par.enquadramentos.map((e) => `${e.grupo} · ${e.subgrupo}`).join(' / ') || <Selo cor="alerta">{l.par.cfop ? 'fora da matriz' : 'sem CFOP (NFS-e)'}</Selo>}
+                      {l.par.sinalizacoes.filter((x) => x === 'cfop_inexistente' || x === 'reducao_literalidade').map((x) => (
+                        <span key={x} className="mt-1 block"><Selo cor="alerta" titulo={rotuloSinalizacao(x, l.par.cfop)}>{x === 'cfop_inexistente' ? 'CFOP inexistente' : 'redução: literalidade'}</Selo></span>
+                      ))}
+                    </td>
                     <td className="font-data text-[0.74rem]">{l.par.cstAtual || '—'}<span className="block">{l.par.cClassTribAtual || '—'}</span></td>
                     <td className="font-data text-[0.74rem]">
                       {l.resultado ? <>{`G${l.resultado.grupo_ia}`}<span className="block">{l.resultado.cst_proposto}</span><span className="block">{l.resultado.cclasstrib_proposto}</span></> : '—'}

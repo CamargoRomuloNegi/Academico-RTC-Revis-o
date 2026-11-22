@@ -11,6 +11,10 @@
  *      CONTA (50/dia sem créditos; 1.000/dia com créditos comprados), compartilhada por
  *      todos os modelos gratuitos. Quando a cota acaba, a vaga é pulada e o fallback assume.
  *
+ * PARALELISMO (D25)
+ *   Várias vagas podem chamar ao mesmo tempo. Use reservar(), que confere a cota e o rpm
+ *   e registra a chamada de forma atômica (sem espera entre a checagem e o registro).
+ *
  * LIMITAÇÃO CONSCIENTE
  *   Sem persistência (decisão D02), a contagem diária vale para a SESSÃO. Se o aluno já usou
  *   a cota em outra aba ou aplicação, o provedor responderá 429 e o orquestrador tratará
@@ -73,6 +77,24 @@ export class ControleDeCota {
       total += espera
     }
     return total
+  }
+
+  /**
+   * Reserva uma chamada: espera a janela do rpm e, NO MESMO INSTANTE em que há vaga,
+   * registra o uso. Com chamadas em paralelo (D25), isso evita que duas tarefas vejam a
+   * mesma vaga livre e ambas passem do limite. Devolve false se a cota diária do
+   * provedor acabou ou se a execução foi interrompida.
+   */
+  async reservar(vaga: string, rpm: number, provedor: IdProvedor, signal?: AbortSignal): Promise<boolean> {
+    for (;;) {
+      if (signal?.aborted || this.restanteHoje(provedor) <= 0) return false
+      const espera = this.esperaNecessaria(vaga, rpm)
+      if (espera <= 0) {
+        this.registrar(vaga, provedor) // síncrono: nenhuma outra tarefa roda entre a checagem e o registro
+        return true
+      }
+      await this.relogio.dormir(espera, signal)
+    }
   }
 
   /** Registra uma chamada feita (conta no rpm da vaga e na cota diária do provedor). */

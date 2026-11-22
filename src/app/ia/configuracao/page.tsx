@@ -2,7 +2,7 @@
 /**
  * Módulo 6 (parte 1) · Configurar IA: chaves (arquivo padrão, só em memória), modo de
  * conexão, 5 vagas do OpenRouter + 1 vaga do Gemini, parâmetros de execução e base de
- * conhecimento (Prompt Mestre, matriz e tabela).
+ * conhecimento (Prompt Mestre, matriz, tabela de cClassTrib e tabela oficial de CFOP).
  */
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -10,10 +10,12 @@ import { ArrowRight, Download, KeyRound, Loader2, RefreshCw, ShieldCheck, Trash2
 import { useExtratorStore } from '@/application/store/useExtratorStore'
 import { guardarChaves, interpretarArquivoSegredos, limparChaves, resumoChaves } from '@/infrastructure/ia/CofreSegredos'
 import { listarModelosGemini, listarModelosOpenRouter, MODELOS_GEMINI_SUGERIDOS, verificarChaveOpenRouter } from '@/infrastructure/ia/ClienteIA'
-import { cfopsEmMaisDeUmGrupo } from '@/application/matriz/LeitorMatriz'
+import { cfopDeLinhasPlanilha, cfopsEmMaisDeUmGrupo } from '@/application/matriz/LeitorMatriz'
 import { estimarTokens, montarPromptSistema } from '@/application/ia/MontadorPrompt'
 import { baixar } from '@/application/services/ExportService'
 import type { Conhecimento } from '@/application/store/useExtratorStore'
+import { ROTULO_REGIME } from '@/domain/models/RevisaoIA'
+import type { TaxRegime } from '@/domain/models/FiscalDocument'
 import { CabecalhoPagina } from '@/components/ui/CabecalhoPagina'
 import { Cartao } from '@/components/ui/Cartao'
 import { Aviso } from '@/components/ui/Aviso'
@@ -26,11 +28,25 @@ const ARQUIVOS: { chave: keyof Omit<Conhecimento, 'origem'>; nome: string; arqui
   { chave: 'promptMestre', nome: 'Prompt Mestre (automação)', arquivo: 'Prompt-Mestre-RTC.md', papel: 'Identidade do agente, matriz de decisão, protocolo e formato de saída.', aceitar: '.md,.txt' },
   { chave: 'grupamentos', nome: 'Grupamentos-CFOP (matriz humana)', arquivo: 'Grupamentos-CFOP.md', papel: 'Julgamento humano: CFOP → Grupo Mestre, essência e fundamentação.', aceitar: '.md,.txt' },
   { chave: 'classificacaoJson', nome: 'Classificação tributária', arquivo: 'classificacao_tributaria.json', papel: 'Tabela oficial CST × cClassTrib usada pela IA e pela validação.', aceitar: '.json,.md,.txt' },
+  { chave: 'cfopJson', nome: 'Tabela oficial de CFOP', arquivo: 'cfop_oficial.json', papel: 'Descrição oficial de cada CFOP (não vai inteira ao prompt: cada par leva a sua). Aceita a planilha do Siscomex.', aceitar: '.json,.xlsx,.xls' },
 ]
+
+const REGIMES: TaxRegime[] = ['RPA', 'SIMPLES_EXCESSO', 'UNKNOWN', 'SIMPLES_NACIONAL', 'MEI']
+
+/** Converte uma planilha de CFOP (.xlsx/.xls) para o JSON do projeto. */
+async function planilhaCfopParaJson(arquivo: File): Promise<string> {
+  const XLSX = await import('@e965/xlsx')
+  const wb = XLSX.read(await arquivo.arrayBuffer(), { cellDates: true })
+  const aba = wb.Sheets[wb.SheetNames[0] ?? '']
+  if (!aba) throw new Error('A planilha está vazia.')
+  const linhas = XLSX.utils.sheet_to_json<unknown[]>(aba, { header: 1, raw: true, defval: '' })
+  return JSON.stringify(cfopDeLinhasPlanilha(linhas), null, 1)
+}
 
 export default function PaginaConfiguracaoIA() {
   const s = useExtratorStore()
-  const { conhecimento, matriz, tabela, erroTabela, erro: erroConhecimento } = useConhecimento()
+  const { conhecimento, matriz, tabela, tabelaCfop, erroTabela, erroCfop, erro: erroConhecimento } = useConhecimento()
+  const [erroTroca, setErroTroca] = useState<string | null>(null)
   const [msgChaves, setMsgChaves] = useState<Mensagem>(null)
   const [msgModelos, setMsgModelos] = useState<Mensagem>(null)
   const [buscando, setBuscando] = useState<'openrouter' | 'gemini' | 'chave' | null>(null)
@@ -94,8 +110,13 @@ export default function PaginaConfiguracaoIA() {
 
   async function substituirArquivo(chave: keyof Omit<Conhecimento, 'origem'>, arquivo: File | undefined) {
     if (!arquivo || !conhecimento) return
-    const texto = await arquivo.text()
-    s.definirConhecimento({ ...conhecimento, [chave]: texto, origem: { ...conhecimento.origem, [chave]: `enviado: ${arquivo.name}` } })
+    setErroTroca(null)
+    try {
+      const texto = chave === 'cfopJson' && /\.xlsx?$/i.test(arquivo.name) ? await planilhaCfopParaJson(arquivo) : await arquivo.text()
+      s.definirConhecimento({ ...conhecimento, [chave]: texto, origem: { ...conhecimento.origem, [chave]: `enviado: ${arquivo.name}` } })
+    } catch (e) {
+      setErroTroca(`${arquivo.name}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
   const p = s.parametros
@@ -250,15 +271,57 @@ export default function PaginaConfiguracaoIA() {
             <input type="number" step={0.1} min={0} max={1} className="entrada font-data mt-1" value={p.temperatura} onChange={(e) => s.atualizarParametros({ temperatura: Math.min(1, Math.max(0, Number(e.target.value))) })} />
             <span className="mt-1 block text-[0.7rem] leading-snug text-[var(--color-text-muted)]">Baixa (0 a 0,2) = respostas mais estáveis e técnicas.</span>
           </label>
+          <label className="block text-[0.78rem] text-[var(--color-text-secondary)]">
+            <span className="micro-label block">Execução</span>
+            <span className="mt-2 flex items-center gap-2"><input type="checkbox" checked={p.emParalelo} onChange={(e) => s.atualizarParametros({ emParalelo: e.target.checked })} /> Vagas em paralelo</span>
+            <span className="mt-1 block text-[0.7rem] leading-snug text-[var(--color-text-muted)]">Cada vaga do OpenRouter julga um lote ao mesmo tempo. Acelera; não aumenta a cota diária.</span>
+          </label>
+        </div>
+
+        <div className="mt-5 grid gap-5 border-t border-[var(--color-border)] pt-4 lg:grid-cols-2">
+          <div>
+            <span className="micro-label block">Escopo da revisão · regime do emitente</span>
+            <div className="mt-2 space-y-1.5">
+              {REGIMES.map((r) => (
+                <label key={r} className="flex items-center gap-2 text-[0.8rem]">
+                  <input
+                    type="checkbox"
+                    checked={p.regimesNoEscopo.includes(r)}
+                    onChange={(e) => s.atualizarParametros({ regimesNoEscopo: e.target.checked ? [...p.regimesNoEscopo, r] : p.regimesNoEscopo.filter((x) => x !== r) })}
+                  />
+                  {ROTULO_REGIME[r]}
+                </label>
+              ))}
+            </div>
+            <span className="mt-2 block text-[0.7rem] leading-snug text-[var(--color-text-muted)]">
+              Padrão: Regime Normal e Simples com excesso de sublimite (destaca IBS/CBS como contribuinte comum). Simples Nacional e MEI ficam fora. Mudar o escopo reinicia a revisão.
+            </span>
+          </div>
+          <div>
+            <span className="micro-label block">Relatório executivo · Gemini</span>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {([['modeloResumo', 'Modelo principal'], ['modeloResumoReserva', 'Reserva']] as const).map(([chave, rotulo]) => (
+                <label key={chave} className="block text-[0.76rem] text-[var(--color-text-secondary)]">{rotulo}
+                  <select className="entrada mt-1" value={p[chave]} onChange={(e) => s.atualizarParametros({ [chave]: e.target.value })}>
+                    {[...new Set([...(s.modelosGemini.length ? s.modelosGemini.map((m) => m.id) : MODELOS_GEMINI_SUGERIDOS), p[chave]])].filter(Boolean).map((id) => <option key={id} value={id}>{id}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            <span className="mt-2 block text-[0.7rem] leading-snug text-[var(--color-text-muted)]">
+              Uma única chamada, com os números já consolidados. O Pro argumenta melhor; se falhar (ex.: limite do plano gratuito), a reserva assume.
+            </span>
+          </div>
         </div>
       </Cartao>
 
       {/* 5. BASE DE CONHECIMENTO */}
-      <Cartao titulo="5. Base de conhecimento" descricao="Os três arquivos que a IA recebe por inteiro em cada chamada. Você pode trocar qualquer um deles nesta sessão (ex.: uma nova versão da matriz) sem mexer no código.">
+      <Cartao titulo="5. Base de conhecimento" descricao="Os três primeiros arquivos vão por inteiro à IA em cada chamada; a tabela de CFOP dá a descrição oficial de cada par. Você pode trocar qualquer um deles nesta sessão (ex.: uma nova versão da matriz) sem mexer no código.">
         {erroConhecimento && <Aviso tipo="erro">{erroConhecimento}</Aviso>}
+        {erroTroca && <div className="mb-3"><Aviso tipo="erro">{erroTroca}</Aviso></div>}
         {!conhecimento && !erroConhecimento && <p className="flex items-center gap-2 text-[0.8rem] text-[var(--color-text-muted)]"><Loader2 size={14} className="girando" /> Carregando…</p>}
         {conhecimento && (
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {ARQUIVOS.map((a) => (
               <div key={a.chave} className="flex flex-col rounded-lg border border-[var(--color-border)] p-3">
                 <p className="text-[0.85rem] font-semibold">{a.nome}</p>
@@ -282,8 +345,10 @@ export default function PaginaConfiguracaoIA() {
               Matriz: <strong>{matriz.subgrupos.length}</strong> subgrupos e <strong>{matriz.porCfop.size}</strong> CFOPs.{' '}
               {duplicidades.length > 0 && <>CFOPs em mais de um grupo (revisão humana obrigatória): <span className="font-data">{duplicidades.join(', ')}</span>.</>}
               {tabela && <> Tabela: <strong>{tabela.registros.length}</strong> classificações.</>}
+              {tabelaCfop && <> CFOP oficial: <strong>{tabelaCfop.registros.length}</strong> códigos.</>}
             </Aviso>
             {erroTabela && <Aviso tipo="erro">{erroTabela}</Aviso>}
+            {erroCfop && <Aviso tipo="erro">Tabela de CFOP: {erroCfop}</Aviso>}
           </div>
         )}
       </Cartao>

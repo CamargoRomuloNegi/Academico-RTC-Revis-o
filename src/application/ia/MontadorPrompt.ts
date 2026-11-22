@@ -36,15 +36,17 @@ export function montarPromptSistema(base: BaseConhecimento): string {
     : `${comGrupamentos}\n\n## Tabela de classificação tributária\n${classificacao}`
 }
 
-/** Representação de um par no formato de entrada do Prompt Mestre (seção 8). */
+/**
+ * Representação de um par no formato de entrada do Prompt Mestre (seção 8).
+ * Não enviados de propósito: NCM (D22) e direção da operação (D24).
+ */
 export function parParaEntrada(par: ParUnico): Record<string, unknown> {
   return {
     id: par.id,
     cfop: par.cfop,
-    ncm: par.ncm,
+    descricao_oficial_cfop: par.descricaoCfop,
     descricoes_exemplo: par.descricoesExemplo,
     tipos_documento: par.tiposDocumento,
-    direcoes: par.direcoes,
     cst_atual: par.cstAtual,
     cclasstrib_atual: par.cClassTribAtual,
     grupos_matriz_humana: par.enquadramentos.map((e) => ({ grupo: e.grupo, subgrupo: e.subgrupo, essencia: e.essencia })),

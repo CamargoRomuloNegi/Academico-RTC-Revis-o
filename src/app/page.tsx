@@ -15,13 +15,15 @@ const EXPLICACAO: Record<string, string> = {
   '/extracao': 'Envie os XMLs (avulsos ou em .zip). O navegador identifica o tipo, lê os dados e classifica entradas e saídas.',
   '/exportacao': 'Baixe os dados brutos em Excel, CSV ou TXT.',
   '/ia/configuracao': 'Carregue o arquivo de chaves e escolha 5 modelos gratuitos do OpenRouter e o Gemini de reserva.',
-  '/ia/revisao': 'A IA julga cada par CFOP + NCM + CST + cClassTrib pela matriz de decisão e concorda ou propõe outra classificação.',
+  '/ia/revisao': 'A IA julga cada par CFOP + CST + cClassTrib pela matriz de decisão e concorda ou propõe outra classificação.',
+  '/resumo': 'Painel com a amostra, as principais operações e o nível de conformidade por valor, e o relatório executivo gerado pelo Gemini.',
 }
 
 export default function Inicio() {
   const documentos = useExtratorStore((s) => s.documentos.length)
   const campos = useExtratorStore((s) => s.camposSelecionados.length)
   const vagas = useExtratorStore((s) => s.vagas.filter((v) => v.ativo && v.modelo).length)
+  const relatorio = useExtratorStore((s) => Boolean(s.relatorio))
   const julgados = useExtratorStore((s) => s.linhasRevisao.filter((l) => l.resultado).length)
 
   const situacao: Record<string, string | null> = {
@@ -29,6 +31,7 @@ export default function Inicio() {
     '/extracao': documentos ? `${documentos} documento(s) carregado(s)` : null,
     '/ia/configuracao': vagas ? `${vagas} modelo(s) configurado(s)` : null,
     '/ia/revisao': julgados ? `${julgados} par(es) julgado(s)` : null,
+    '/resumo': relatorio ? 'relatório gerado' : null,
   }
 
   return (

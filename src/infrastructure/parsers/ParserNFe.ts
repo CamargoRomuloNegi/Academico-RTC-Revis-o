@@ -4,7 +4,7 @@
  * Leiaute 4.00 — SEFAZ/RFB.
  *
  * Cobre:
- * - Regimes CRT 1, 2 (Simples/MEI) e 3 (RPA)
+ * - Regimes CRT 1 (Simples), 2 (Simples com excesso de sublimite), 3 (RPA) e 4 (MEI)
  * - IBSCBS presente (RPA 2026+) e ausente (Simples / período pré-reforma)
  * - Todos os grupos ICMS: ICMS00, ICMS10, ICMS20, ICMS40, ICMS45, ICMS51,
  *   ICMS60, ICMS70, ICMS90, ICMSSN102, ICMSSN202, ICMSSN500, ICMSSN900
@@ -326,8 +326,10 @@ export class ParserNFe implements IXmlParser {
 
   protected mapTaxRegime(crt: unknown): TaxRegime {
     const n = Number(crt)
-    if (n === 1 || n === 2) return 'SIMPLES_NACIONAL'
+    if (n === 1) return 'SIMPLES_NACIONAL'
+    if (n === 2) return 'SIMPLES_EXCESSO' // excesso de sublimite: destaca como regime normal (D23)
     if (n === 3) return 'RPA'
+    if (n === 4) return 'MEI'
     return 'UNKNOWN'
   }
 

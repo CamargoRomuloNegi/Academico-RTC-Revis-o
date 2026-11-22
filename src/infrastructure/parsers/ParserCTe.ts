@@ -315,8 +315,10 @@ export class ParserCTe implements IXmlParser {
 
   private mapTaxRegime(crt: unknown): TaxRegime {
     const n = Number(crt)
-    if (n === 1 || n === 2) return 'SIMPLES_NACIONAL'
+    if (n === 1) return 'SIMPLES_NACIONAL'
+    if (n === 2) return 'SIMPLES_EXCESSO' // excesso de sublimite: destaca como regime normal (D23)
     if (n === 3) return 'RPA'
+    if (n === 4) return 'MEI'
     return 'UNKNOWN'
   }
 

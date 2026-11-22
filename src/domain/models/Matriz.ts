@@ -47,3 +47,23 @@ export interface TabelaClassificacao {
 export const COLUNA_CST = 'Código da Situação Tributária'
 export const COLUNA_CCLASSTRIB = 'Código da Classificação Tributária'
 export const COLUNA_DESCRICAO_CCLASSTRIB = 'Descrição do Código da Classificação Tributária'
+
+// ---------------------------------------------------------------------------
+// TABELA OFICIAL DE CFOP (decisão D29)
+// ---------------------------------------------------------------------------
+
+/**
+ * Um CFOP da tabela oficial (fonte padrão: planilha publicada no portal do Siscomex,
+ * que reproduz o Convênio s/nº de 1970 / Ajuste SINIEF; o CONFAZ é o detentor oficial).
+ */
+export interface RegistroCfop {
+  cfop: string
+  descricao: string
+  grupo: string
+  inicioVigencia: string
+}
+
+export interface TabelaCfop {
+  registros: RegistroCfop[]
+  porCfop: Map<string, RegistroCfop>
+}
