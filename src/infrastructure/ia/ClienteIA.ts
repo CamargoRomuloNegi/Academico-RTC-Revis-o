@@ -57,6 +57,24 @@ const MENSAGENS_STATUS: Record<number, [CodigoErro, string]> = {
   504: ['indisponivel', 'O provedor está indisponível no momento.'],
 }
 
+/**
+ * Explicações específicas por provedor, para os erros que o usuário precisa resolver fora
+ * da ferramenta. O caso típico do Gemini: 402 "prepayment credits are depleted" significa
+ * que o projeto da chave está ligado a uma conta de faturamento PRÉ-PAGA sem saldo. O Google
+ * bloqueia TODAS as chaves desse projeto (e da conta de faturamento), por isso criar outra
+ * chave no mesmo projeto não resolve. O plano gratuito vale para projetos SEM faturamento.
+ */
+const EXPLICACOES_PROVEDOR: Partial<Record<IdProvedor, Partial<Record<number, string>>>> = {
+  gemini: {
+    402:
+      'Saldo pré-pago do Google zerado: o projeto desta chave está ligado a uma conta de faturamento pré-paga sem crédito, e todas as chaves desse projeto ficam bloqueadas. Use uma chave de um projeto do AI Studio sem faturamento (plano gratuito) ou adicione crédito.',
+    429: 'Limite do plano do Gemini atingido (por minuto ou por dia, por projeto). Aguarde ou use um modelo Flash-Lite, que tem cota gratuita maior.',
+  },
+  openrouter: {
+    402: 'Créditos do OpenRouter esgotados. Os modelos :free não exigem saldo; confira se o modelo da vaga termina em ":free".',
+  },
+}
+
 const STATUS_RETENTAVEIS = new Set([502, 503, 504])
 const MAX_RETENTATIVAS = 2
 
@@ -188,7 +206,8 @@ export async function requisitar<T = unknown>(op: OpcoesRequisicao, amb: Ambient
       continue
     }
     if (!resposta.ok) {
-      const [codigo, padrao] = MENSAGENS_STATUS[resposta.status] ?? (['requisicao', `Erro HTTP ${resposta.status}.`] as [CodigoErro, string])
+      const [codigo, generico] = MENSAGENS_STATUS[resposta.status] ?? (['requisicao', `Erro HTTP ${resposta.status}.`] as [CodigoErro, string])
+      const padrao = EXPLICACOES_PROVEDOR[op.provedor]?.[resposta.status] ?? generico
       const detalhe = mensagemDoCorpo(texto)
       throw new ErroProvedor(codigo, detalhe ? `${padrao} Detalhe: ${detalhe}` : padrao, resposta.status)
     }
@@ -329,5 +348,11 @@ export async function verificarChaveOpenRouter(modo: ModoConexao, chave?: string
   return { rotulo: d.label, gratuita: d.is_free_tier ?? true, limiteCreditos: d.limit ?? null, usoCreditos: d.usage }
 }
 
-/** Modelos Gemini sugeridos quando a listagem não está disponível. */
-export const MODELOS_GEMINI_SUGERIDOS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
+/**
+ * Modelos Gemini sugeridos quando a listagem não está disponível. Todos com cota no plano
+ * gratuito (conferido em ai.google.dev/gemini-api/docs/rate-limits, nov/2026):
+ *   gemini-3.5-flash-lite e gemini-3.1-flash-lite → 15 RPM, 500 por dia
+ *   gemini-3.8-flash e gemini-3.6-flash           → 5 RPM, 20 por dia
+ * A família 2.5 ficou restrita a quem já a usava, e os modelos Pro não têm cota gratuita.
+ */
+export const MODELOS_GEMINI_SUGERIDOS = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']

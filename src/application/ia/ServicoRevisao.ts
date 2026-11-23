@@ -5,7 +5,7 @@
  */
 
 import type { IdProvedor, ParametrosExecucao } from '@/domain/models/RevisaoIA'
-import { enviarChat } from '@/infrastructure/ia/ClienteIA'
+import { enviarChat, ErroProvedor } from '@/infrastructure/ia/ClienteIA'
 import { ControleDeCota } from './ControleDeCota'
 import { executarRevisao, type EntradaRevisao, type ResultadoRevisao } from './OrquestradorRevisao'
 import { montarMensagensRelatorio, type IndicadoresResumo } from '@/application/resumo/ResumoExecutivo'
@@ -111,6 +111,9 @@ export async function gerarRelatorioExecutivo(
     } catch (e) {
       falhas.push(`${modelo}: ${e instanceof Error ? e.message : String(e)}`)
       if (signal?.aborted) break
+      // Saldo zerado (402) e chave recusada (401/403) valem para o projeto inteiro da chave,
+      // não para um modelo: tentar a reserva só gastaria tempo e repetiria o mesmo erro.
+      if (e instanceof ErroProvedor && (e.codigo === 'credito' || e.codigo === 'chave')) break
     }
   }
   throw new Error(`Não foi possível gerar o relatório. ${falhas.join(' | ')}`)

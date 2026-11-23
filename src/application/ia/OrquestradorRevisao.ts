@@ -119,6 +119,11 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
   let julgados = 0
   let concluidos = 0
   let emAndamento = 0
+  /**
+   * Vagas fora de uso nesta execução: saldo esgotado (402) ou chave inválida (401) não
+   * se resolvem esperando, então as próximas chamadas a essa vaga são puladas na hora.
+   */
+  const vagasInutilizadas = new Map<number, string>()
 
   const progresso = (mensagem: string) =>
     entrada.aoProgredir?.({ lotesConcluidos: concluidos, totalLotes: lotes.length, emAndamento, paresJulgados: julgados, totalPares: pares.length, mensagem })
@@ -134,6 +139,13 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
       const rotulo = rotuloVaga(vaga)
       const provedor: IdProvedor = vaga.provedor
       for (const p of pendentes) linhas.get(p.id)?.tentativas.push(`Vaga ${vaga.posicao}`)
+
+      const motivoInutilizada = vagasInutilizadas.get(vaga.posicao)
+      if (motivoInutilizada) {
+        chamadas.push({ lote: l + 1, vaga: vaga.posicao, provedor, modelo: vaga.modelo, inicio: new Date(relogio.agora()).toISOString(), duracaoMs: 0, status: 'PULADA', paresEnviados: pendentes.length, paresValidos: 0, mensagem: `Vaga fora de uso nesta execução: ${motivoInutilizada}` })
+        for (const p of pendentes) motivos.set(p.id, `${rotulo}: ${motivoInutilizada}`)
+        continue
+      }
 
       progresso(`${nome}: aguardando a vez de ${rotulo}`)
       const reservada = await controle.reservar(`vaga-${vaga.posicao}`, vaga.rpm, provedor, signal)
@@ -178,6 +190,9 @@ export async function executarRevisao(entrada: EntradaRevisao, deps: Dependencia
         registro.mensagem = mensagem
         if (!(erro instanceof ErroProvedor && erro.codigo === 'cancelado')) {
           for (const p of pendentes) motivos.set(p.id, `${rotulo}: ${mensagem}`)
+        }
+        if (erro instanceof ErroProvedor && (erro.codigo === 'credito' || erro.status === 401)) {
+          vagasInutilizadas.set(vaga.posicao, mensagem)
         }
       } finally {
         emAndamento--

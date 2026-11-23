@@ -309,7 +309,7 @@ export default function PaginaConfiguracaoIA() {
               ))}
             </div>
             <span className="mt-2 block text-[0.7rem] leading-snug text-[var(--color-text-muted)]">
-              Uma única chamada, com os números já consolidados. O Pro argumenta melhor; se falhar (ex.: limite do plano gratuito), a reserva assume.
+              Uma única chamada, com os números já consolidados. No plano gratuito, o 3.8 Flash redige melhor (20 chamadas por dia) e o 3.5 Flash-Lite é a reserva (500 por dia). Modelos Pro não têm cota gratuita. Se o Google recusar por saldo pré-pago zerado, a reserva não é tentada: o bloqueio vale para todo o projeto da chave.
             </span>
           </div>
         </div>

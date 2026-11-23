@@ -60,7 +60,7 @@ export function BarraLateral() {
       </nav>
       <div className="border-t border-[var(--color-ink-border)] px-5 py-3.5">
         <p className="text-[0.66rem] leading-relaxed text-[#5c6474]">XMLs processados no seu navegador. Nada é gravado em servidor.</p>
-        <p className="font-data mt-1.5 text-[0.6rem] text-[#3b4250]">v1.1.0 · Prof. Camargo &amp; Claude</p>
+        <p className="font-data mt-1.5 text-[0.6rem] text-[#3b4250]">v1.1.1 · Prof. Camargo &amp; Claude</p>
       </div>
     </aside>
   )

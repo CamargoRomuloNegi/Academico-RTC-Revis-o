@@ -136,8 +136,8 @@ export const PARAMETROS_PADRAO: ParametrosExecucao = {
   modoConexao: 'direto',
   emParalelo: true,
   regimesNoEscopo: REGIMES_NO_ESCOPO_PADRAO,
-  modeloResumo: 'gemini-2.5-pro',
-  modeloResumoReserva: 'gemini-2.5-flash',
+  modeloResumo: 'gemini-3.8-flash',
+  modeloResumoReserva: 'gemini-3.5-flash-lite',
 }
 
 // ---------------------------------------------------------------------------

@@ -45,7 +45,7 @@ export interface RelatorioExecutivo {
 /** Vagas iniciais: 5 do OpenRouter (rodízio) e 1 do Gemini (fallback). */
 export const VAGAS_INICIAIS: VagaModelo[] = [
   ...[1, 2, 3, 4, 5].map((posicao) => ({ posicao, provedor: 'openrouter' as const, modelo: '', rpm: 20, ativo: true })),
-  { posicao: 6, provedor: 'gemini', modelo: 'gemini-2.5-flash', rpm: 10, ativo: true },
+  { posicao: 6, provedor: 'gemini', modelo: 'gemini-3.5-flash-lite', rpm: 10, ativo: true },
 ]
 
 interface EstadoExtrator {
