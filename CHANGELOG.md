@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões seguem [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.1.1] — 22/11/2026
+
+Correção da chamada ao Gemini (decisões D32 e D33).
+
+### Corrigido
+
+- **Modelos do Gemini:** os padrões passam a ser modelos com cota no plano gratuito. Relatório executivo: `gemini-3.8-flash` (5/min, 20/dia), com reserva `gemini-3.5-flash-lite` (15/min, 500/dia). Vaga 6: `gemini-3.5-flash-lite`. Saem o `gemini-2.5-pro` (sem cota gratuita) e o `gemini-2.5-flash` (restrito a quem já o usava).
+- **Erro 402 do Google** ("prepayment credits are depleted"): a mensagem agora explica que o projeto da chave está ligado a uma conta de faturamento pré-paga sem saldo e orienta a usar uma chave de um projeto sem faturamento. O relatório não tenta mais a reserva nesse caso, porque o bloqueio vale para todo o projeto.
+- **Revisão:** uma vaga que recebe 402 (saldo) ou 401 (chave inválida) sai do rodízio até o fim da execução, em vez de ser chamada de novo a cada lote.
+
+### Documentação
+
+- Tabela de modelos gratuitos do Gemini e nova dúvida frequente sobre o erro de saldo em `PASSO_A_PASSO.md`. ADR-0007, SDD 04, 08 e 09 e Registro de Decisões atualizados.
+
 ## [1.1.0] — 22/11/2026
 
 Rodada 2, após o primeiro uso real com uma massa de 486 pares (decisões D21 a D31).

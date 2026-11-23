@@ -88,7 +88,8 @@ Regras da resposta (seção 9 do Prompt Mestre): um resultado por `id`, na mesma
 - **system**: `PROMPT_RELATORIO` (`ResumoExecutivo.ts`): auditor sênior; seções Contexto da amostra, Principais operações, Nível de conformidade, Pontos prioritários de análise (5 a 10, por impacto financeiro), Recomendações, Limitações; usar só os números recebidos; conformidade por valor; literalidade nas reduções; mencionar o volume fora do escopo; até 700 palavras; lembrete final de responsabilidade técnica.
 - **user**: `Indicadores consolidados (JSON):` + `indicadoresParaIA(ind)` (empresa, amostra, escopo, pares, revisão, conformidade com índices em %, 10 principais operações, distribuição na matriz, até 25 pontos de atenção).
 - **Resposta**: Markdown livre, exibido no painel e copiado para a aba "Resumo Executivo".
-- **Modelos**: `modeloResumo` (padrão `gemini-2.5-pro`); se falhar, `modeloResumoReserva` (`gemini-2.5-flash`). Temperatura 0,3. Conta na cota diária do Gemini.
+- **Modelos**: `modeloResumo` (padrão `gemini-3.8-flash`); se falhar por limite, tempo ou indisponibilidade, `modeloResumoReserva` (`gemini-3.5-flash-lite`). Em `credito` (402) ou `chave` (401/403) a reserva não é tentada. Temperatura 0,3. Conta na cota diária do Gemini.
+- **Erros explicados por provedor** (`EXPLICACOES_PROVEDOR`, `ClienteIA.ts`): o 402 do Gemini vira "Saldo pré-pago do Google zerado…" com a orientação de usar uma chave de projeto sem faturamento; o 429 do Gemini sugere um modelo Flash-Lite. Na revisão, uma vaga que recebe 402 ou 401 fica fora de uso até o fim da execução (chamadas seguintes registradas como `PULADA`).
 
 ## Aviso obrigatório
 

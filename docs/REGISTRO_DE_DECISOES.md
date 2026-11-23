@@ -44,7 +44,7 @@
 | D25 | Paralelismo | As vagas do OpenRouter passam a trabalhar ao mesmo tempo, cada uma com o seu lote, respeitando as cotas por minuto e por dia. |
 | D26 | Resumo executivo | Nova etapa final: painel na tela (imprimível em PDF) e aba "Resumo Executivo" no Excel, com amostra, empresa, principais operações, nível de conformidade e relatório executivo com os pontos prioritários. |
 | D27 | Conformidade | Medida **por valor (R$)**, com a quantidade de pares ao lado, por ser mais relevante para o saneamento dos erros. |
-| D28 | Modelo do resumo | O relatório executivo é gerado pelo **Gemini** (via API do Google), com modelo próprio configurável (sugestão: Pro, com Flash de reserva). |
+| D28 | Modelo do resumo | O relatório executivo é gerado pelo **Gemini** (via API do Google), com modelo próprio configurável (sugestão original: Pro, com Flash de reserva; revisada em D32). |
 | D29 | Tabela oficial de CFOP | A tabela do Siscomex (`cfop.xlsx`) entra como 4º arquivo da base de conhecimento, substituível: descrição oficial nas planilhas e na tela, apoio à IA nos CFOPs fora da matriz e sinalização de CFOP inexistente. A matriz do professor continua sendo a âncora de decisão e não pretende cobrir todos os CFOPs. |
 | D30 | Documentação para IA | A documentação ganha uma seção para IA (prompt de reprodução do projeto) e um conjunto SDD: especificação, funções, decisões, arquitetura e fluxos. |
 | D31 | Descrições de produto | As descrições de exemplo dos itens continuam indo para a IA, para que ela entenda a essência da operação, com a regra da literalidade (D22) valendo também para elas. |
@@ -55,6 +55,13 @@
 - Na NFS-e Nacional, o campo `opSimpNac` não distingue o excesso de sublimite: optante ME/EPP fica como Simples Nacional (fora do escopo padrão) e não optante como Regime Normal.
 - Mudar o escopo de regimes reinicia a revisão, porque os pares e seus identificadores mudam.
 - O relatório executivo envia ao Gemini a razão social e o CNPJ raiz da empresa analisada, além dos números consolidados.
+
+## Ajustes da v1.1.1 (Gemini)
+
+| # | Tema | Decisão |
+|---|---|---|
+| D32 | Modelos do Gemini | Padrões trocados para modelos com cota gratuita: `gemini-3.8-flash` no relatório, `gemini-3.5-flash-lite` na reserva e na vaga 6. O Pro sai da sugestão (sem cota gratuita) e a família 2.5 sai dos padrões (restrita a quem já a usava). Revisa a sugestão de D28. |
+| D33 | Saldo zerado | O erro 402 do Google ("prepayment credits are depleted") é do projeto e da conta de faturamento pré-paga, não da chave. A ferramenta explica a causa em português, não tenta o modelo de reserva e tira a vaga do rodízio até o fim da execução. |
 
 ## Pendências com o professor
 

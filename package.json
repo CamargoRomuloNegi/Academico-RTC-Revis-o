@@ -1,6 +1,6 @@
 {
   "name": "extrator-xml-rtc",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Extrator de dados brutos de XMLs fiscais (NF-e 55, NFC-e 65, CT-e 57, NFS-e Nacional) com revisão de CST/cClassTrib por IA à luz da Reforma Tributária do Consumo.",
   "scripts": {

@@ -73,7 +73,7 @@ A aba **Sobre** do arquivo registra a data, a quantidade de documentos e os cré
 
 1. Clique em **Buscar modelos do OpenRouter**. A lista vem ao vivo do OpenRouter e mostra só os modelos gratuitos (`:free` ou preço zero). Também é possível digitar o identificador do modelo.
 2. Escolha um modelo para cada uma das **5 vagas do OpenRouter**. Prefira modelos diferentes entre si: a planilha final mostra qual modelo julgou cada linha, e comparar modelos é parte do exercício.
-3. A **vaga 6 é o Gemini**, usado como fallback. O padrão é `gemini-2.5-flash`. O botão ao lado lista os modelos disponíveis na sua chave.
+3. A **vaga 6 é o Gemini**, usado como fallback. O padrão é `gemini-3.5-flash-lite`, que tem a maior cota gratuita (15 chamadas por minuto e 500 por dia). O botão ao lado lista os modelos disponíveis na sua chave.
 4. Em cada vaga, **Req./min** limita as chamadas por minuto (o padrão é 20 no OpenRouter gratuito e 10 no Gemini). Desmarque uma vaga para tirá-la do rodízio.
 5. Prefira modelos com **janela de contexto grande**. A tela mostra o tamanho aproximado do prompt de sistema, que vai inteiro em cada chamada.
 
@@ -90,7 +90,18 @@ A aba **Sobre** do arquivo registra a data, a quantidade de documentos e os cré
 
 **Escopo da revisão (regime do emitente).** Só entram na revisão os itens de documentos cujo **emitente** é do Regime Normal (CRT 3) ou do Simples com excesso de sublimite (CRT 2), que destaca os tributos como um contribuinte comum. Optantes do Simples Nacional (CRT 1) e MEI (CRT 4) ficam fora. Documentos sem regime identificado entram, para não passarem sem análise. Você pode mudar isso nas caixas de seleção; mudar o escopo reinicia a revisão. A extração (passo 4) continua completa, com a coluna Regime.
 
-**Relatório executivo.** Escolha o modelo do Gemini que redige o relatório do passo 7 (padrão: `gemini-2.5-pro`) e o de reserva (`gemini-2.5-flash`), usado se o principal falhar.
+**Relatório executivo.** Escolha o modelo do Gemini que redige o relatório do passo 7 (padrão: `gemini-3.8-flash`) e o de reserva (`gemini-3.5-flash-lite`), usado se o principal falhar por limite ou indisponibilidade.
+
+Modelos do Gemini com cota no plano gratuito (por projeto do Google, conferido em novembro de 2026):
+
+| Modelo | Por minuto | Por dia | Uso sugerido |
+|---|---|---|---|
+| `gemini-3.8-flash` | 5 | 20 | Relatório executivo (redige melhor) |
+| `gemini-3.6-flash` | 5 | 20 | Alternativa ao 3.8 |
+| `gemini-3.5-flash-lite` | 15 | 500 | Vaga 6 e reserva do relatório |
+| `gemini-3.1-flash-lite` | 15 | 500 | Alternativa ao 3.5 Flash-Lite |
+
+Os modelos **Pro** não têm cota gratuita. A família **2.5** ficou restrita a quem já a usava antes, e projetos novos devem usar a 3.x. Os limites mudam com frequência: confira a página de limites do Google antes de cada turma.
 
 ### 5.5 Base de conhecimento
 
@@ -170,6 +181,8 @@ O fechamento do trabalho. Funciona mesmo antes da revisão (mostra a amostra e a
 **A revisão está lenta.** Confira se **Vagas em paralelo** está ligado e se as 5 vagas do OpenRouter têm modelo. Cada chamada leva o prompt completo (cerca de 50 mil tokens) e pede uma análise detalhada por par; modelos gratuitos escrevem devagar. Reduzir o escopo (regime) e manter o corte CFOP + CST + cClassTrib já diminui muito o número de chamadas.
 
 **A revisão parou com "limite" ou "cota".** A cota diária gratuita do OpenRouter é da conta inteira. Espere o dia seguinte, compre créditos (a cota sobe para 1.000/dia) ou continue só com o Gemini, desativando as vagas do OpenRouter.
+
+**O Gemini responde "Créditos ou cota esgotados" / "prepayment credits are depleted".** Não é a chave nem o modelo. O projeto do Google que gerou a chave está ligado a uma **conta de faturamento pré-paga sem saldo**, e o Google bloqueia todas as chaves desse projeto (criar outra chave no mesmo projeto não resolve). Há dois caminhos: (1) no [AI Studio](https://aistudio.google.com/apikey), crie a chave em um **projeto novo, sem faturamento**, que fica no plano gratuito; ou (2) adicione crédito à conta de faturamento. A ferramenta reconhece esse erro, não tenta o modelo de reserva (o bloqueio é do projeto inteiro) e tira a vaga 6 do rodízio até o fim da execução.
 
 **O modo direto falhou com erro de rede.** Mude para **Via servidor** na configuração.
 

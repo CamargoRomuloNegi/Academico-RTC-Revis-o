@@ -66,7 +66,7 @@ describe('ResumoExecutivo', () => {
 
   it('monta as abas do Excel e as mensagens do relatório', () => {
     const ind = calcularIndicadores({ documentos: [doc], cnpjRaiz: '12345678', escopo, pares, linhas })
-    const abas = planilhasResumo(ind, { texto: '## Contexto\nTexto', modelo: 'gemini::gemini-2.5-pro' })
+    const abas = planilhasResumo(ind, { texto: '## Contexto\nTexto', modelo: 'gemini::gemini-3.8-flash' })
     expect(abas.map((a) => a.nome)).toEqual(['Resumo Executivo', 'Principais Operações', 'Pontos de Atenção'])
     expect(abas[0]!.linhas.some((l) => l.Valor === '66,7%')).toBe(true)
     const [sistema, usuario] = montarMensagensRelatorio(ind)

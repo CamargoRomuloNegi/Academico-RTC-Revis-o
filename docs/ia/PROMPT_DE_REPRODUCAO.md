@@ -74,8 +74,9 @@ R12. Créditos explícitos: "planejamento e decisões do Prof. Camargo; desenvol
 - O prompt de sistema é o "Prompt Mestre" do professor (versão para automação, v1.1), com a
   matriz e a tabela de classificação inseridas por inteiro. O formato exato de entrada e
   saída está em docs/sdd/08-CONTRATO-IA.md.
-- O relatório executivo é UMA chamada ao Gemini (Pro, com Flash de reserva) com os números
-  já consolidados; ele não pode inventar valores.
+- O relatório executivo é UMA chamada ao Gemini (um Flash com cota gratuita, e um Flash-Lite
+  de reserva) com os números já consolidados; ele não pode inventar valores. Erro 402 do
+  Google = projeto ligado a faturamento pré-pago sem saldo: não tentar a reserva, explicar.
 
 ## 4. Ordem de leitura dos documentos
 

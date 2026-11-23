@@ -15,7 +15,7 @@ function par(id: string, extra: Partial<ParUnico> = {}): ParUnico {
 
 const vagas: VagaModelo[] = [
   ...[1, 2, 3, 4, 5].map((posicao) => ({ posicao, provedor: 'openrouter' as const, modelo: `m${posicao}:free`, rpm: 20, ativo: true })),
-  { posicao: 6, provedor: 'gemini', modelo: 'gemini-2.5-flash', rpm: 10, ativo: true },
+  { posicao: 6, provedor: 'gemini', modelo: 'gemini-3.5-flash-lite', rpm: 10, ativo: true },
 ]
 
 /** Provedor simulado: responde válido para todos os ids recebidos, exceto nas vagas indicadas. */
@@ -59,7 +59,7 @@ describe('OrquestradorRevisao', () => {
     const deps = simulado(new Set([1, 2, 3, 4, 5]))
     const r = await executarRevisao({ pares: [par('P1')], vagas, parametros, promptSistema: 'S', tabela }, deps)
     expect(deps.usadas).toEqual([1, 2, 3, 4, 5, 6])
-    expect(r.linhas[0]!.modeloJulgador).toBe('gemini::gemini-2.5-flash')
+    expect(r.linhas[0]!.modeloJulgador).toBe('gemini::gemini-3.5-flash-lite')
     expect(r.linhas[0]!.tentativas).toEqual(['Vaga 1', 'Vaga 2', 'Vaga 3', 'Vaga 4', 'Vaga 5', 'Vaga 6'])
   })
 
@@ -139,5 +139,22 @@ describe('OrquestradorRevisao', () => {
   it('exige revisão humana para CFOP inexistente e redução já no XML', async () => {
     const r = await executarRevisao({ pares: [par('P1', { sinalizacoes: ['cfop_inexistente'] }), par('P2', { sinalizacoes: ['reducao_literalidade'] })], vagas, parametros, promptSistema: 'S', tabela }, simulado())
     expect(r.linhas.every((l) => l.revisaoHumanaObrigatoria)).toBe(true)
+  })
+
+  it('põe fora de uso a vaga com saldo esgotado (402) e não insiste nela nos lotes seguintes', async () => {
+    const usadas: number[] = []
+    const deps: DependenciasRevisao = {
+      relogio,
+      chamar: async (vaga) => {
+        usadas.push(vaga.posicao)
+        if (vaga.provedor === 'gemini') throw new ErroProvedor('credito', 'Saldo pré-pago do Google zerado.', 402)
+        throw new ErroProvedor('limite', 'Limite atingido.', 429)
+      },
+    }
+    const pares = Array.from({ length: 6 }, (_, i) => par(`P${i + 1}`))
+    const r = await executarRevisao({ pares, vagas, parametros: { ...parametros, emParalelo: false }, promptSistema: 'S', tabela }, deps)
+    expect(usadas.filter((v) => v === 6)).toHaveLength(1)
+    expect(r.chamadas.filter((c) => c.vaga === 6 && c.status === 'PULADA')).toHaveLength(2)
+    expect(r.linhas.every((l) => l.erro?.includes('Saldo pré-pago'))).toBe(true)
   })
 })

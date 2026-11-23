@@ -50,7 +50,7 @@ Documento normalizado, comum aos quatro tipos. Campos principais:
 | `Sinalizacao` | `duplicidade_matriz`, `cfop_fora_matriz`, `cfop_inexistente`, `sem_classificacao`, `reducao_literalidade`. |
 | `EscopoRevisao` | `regimesNoEscopo[]`, itens e valor no escopo e fora, `porRegime` (documentos, itens, valor). |
 | `VagaModelo` | `posicao` (1–6), `provedor`, `modelo`, `rpm`, `ativo`. |
-| `ParametrosExecucao` | `paresPorLote` (10), `cotaDiariaOpenRouter` (50), `cotaDiariaGemini` (200), `tempoLimiteSegundos` (180), `temperatura` (0,1), `modoConexao` (direto), `emParalelo` (true), `regimesNoEscopo` (RPA, SIMPLES_EXCESSO, UNKNOWN), `modeloResumo` (gemini-2.5-pro), `modeloResumoReserva` (gemini-2.5-flash). |
+| `ParametrosExecucao` | `paresPorLote` (10), `cotaDiariaOpenRouter` (50), `cotaDiariaGemini` (200), `tempoLimiteSegundos` (180), `temperatura` (0,1), `modoConexao` (direto), `emParalelo` (true), `regimesNoEscopo` (RPA, SIMPLES_EXCESSO, UNKNOWN), `modeloResumo` (gemini-3.8-flash), `modeloResumoReserva` (gemini-3.5-flash-lite). |
 | `ResultadoIA` | Campos da seção 9 do Prompt Mestre (ver `08-CONTRATO-IA.md`). |
 | `ValidacaoSemantica` | `ok`, `descricaoCClassTrib?`, `problemas[]`. |
 | `LinhaRevisao` | `par`, `resultado?`, `validacao?`, `modeloJulgador?`, `provedor?`, `tentativas[]`, `julgadoEm?`, `revisaoHumanaObrigatoria`, `erro?`. |

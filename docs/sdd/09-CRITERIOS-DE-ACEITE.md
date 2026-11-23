@@ -1,6 +1,6 @@
 # 09 · Critérios de aceite
 
-Cada critério é verificado por um teste automatizado (`npm test`, sem internet) ou pelo roteiro manual no fim deste documento. Na v1.1.0: **181 testes** em 20 arquivos.
+Cada critério é verificado por um teste automatizado (`npm test`, sem internet) ou pelo roteiro manual no fim deste documento. Na v1.1.1: **186 testes** em 21 arquivos.
 
 ## Automatizados
 

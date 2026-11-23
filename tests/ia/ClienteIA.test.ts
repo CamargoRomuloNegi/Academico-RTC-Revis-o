@@ -62,6 +62,17 @@ describe('ClienteIA', () => {
     expect(amb429.chamadas).toHaveLength(1)
   })
 
+  it('explica o 402 do Gemini (saldo pré-pago zerado no projeto) sem repetir a chamada', async () => {
+    guardarChaves({ gemini: 'AIzaSyA0123456789abcdefghijklmnopqrstu' })
+    const amb = ambiente([json([{ error: { code: 402, message: 'Your prepayment credits are depleted.', status: 'FAILED_PRECONDITION' } }], 402)])
+    const pedido = { provedor: 'gemini' as const, modelo: 'gemini-3.8-flash', mensagens: [], temperatura: 0, timeoutMs: 1000, modo: 'direto' as const }
+    const erro = (await enviarChat(pedido, amb).catch((e: unknown) => e)) as ErroProvedor
+    expect(erro.codigo).toBe('credito')
+    expect(erro.message).toContain('projeto do AI Studio sem faturamento')
+    expect(erro.message).toContain('prepayment credits are depleted')
+    expect(amb.chamadas).toHaveLength(1)
+  })
+
   it('trata erro dentro de resposta 200 do OpenRouter e resposta vazia', async () => {
     guardarChaves({ openrouter: 'sk-or-v1-abcdefghijklmnop' })
     const pedido = { provedor: 'openrouter' as const, modelo: 'm', mensagens: [], temperatura: 0, timeoutMs: 1000, modo: 'direto' as const }
